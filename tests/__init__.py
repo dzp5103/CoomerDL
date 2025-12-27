@@ -1,3 +1,1 @@
-"""
-Test suite for CoomerDL application.
-"""
+"""Unit tests for CoomerDL."""

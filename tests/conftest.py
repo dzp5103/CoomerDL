@@ -1,36 +1,43 @@
 """
-Pytest configuration and shared fixtures for the test suite.
+Pytest configuration and shared fixtures.
 """
 import pytest
-from pathlib import Path
+from downloader.base import DownloadOptions
 
 
 @pytest.fixture
-def mock_settings():
+def download_folder(tmp_path):
     """
-    Provides a standard configuration dictionary for testing.
-    """
-    return {
-        'max_downloads': 3,
-        'folder_structure': 'default',
-        'language': 'en',
-        'theme': 'System',
-        'download_images': True,
-        'download_videos': True,
-        'download_compressed': True,
-        'rate_limit_interval': 1.0,
-        'max_retries': 999999,
-        'retry_interval': 1.0,
-        'stream_read_timeout': 10
-    }
-
-
-@pytest.fixture
-def temp_download_dir(tmp_path):
-    """
-    Provides a temporary directory for download testing.
-    Uses pytest's tmp_path fixture.
+    Provide a temporary download folder for tests.
+    
+    Args:
+        tmp_path: pytest's built-in tmp_path fixture
+        
+    Returns:
+        Path object for temporary download folder
     """
     download_dir = tmp_path / "downloads"
     download_dir.mkdir()
-    return download_dir
+    return str(download_dir)
+
+
+@pytest.fixture
+def download_options():
+    """
+    Provide default download options for tests.
+    
+    Returns:
+        DownloadOptions with standard default settings
+    """
+    return DownloadOptions(
+        download_images=True,
+        download_videos=True,
+        download_compressed=True,
+        download_documents=True,
+        max_retries=3,
+        retry_interval=2.0,
+        chunk_size=1048576,
+        timeout=30,
+        min_file_size=0,
+        max_file_size=0,
+    )
