@@ -164,6 +164,31 @@ Have questions or just want to say hi? Join the Discord server:
 
 ---
 
+## Quick Start
+
+### Installation
+
+1. **Install Python 3.8+** (if not already installed)
+2. **Clone the repository**:
+   ```sh
+   git clone https://github.com/Emy69/CoomerDL.git
+   cd CoomerDL
+   ```
+3. **Install dependencies**:
+   ```sh
+   pip install -r requirements.txt
+   ```
+4. **Run the application**:
+   ```sh
+   python main.py
+   ```
+
+> **Note**: On Linux, you may need to install tkinter separately: `sudo apt install python3-tk`
+> 
+> For detailed installation instructions and troubleshooting, see [Installation & Troubleshooting](#installation--troubleshooting) below.
+
+---
+
 ## Usage
 
 1. Launch the application.
@@ -174,42 +199,157 @@ Have questions or just want to say hi? Join the Discord server:
 
 ---
 
-## Clone the Repository
+## Installation & Troubleshooting
 
-To get a local copy of the project, run the following command:
+### System Requirements
 
+- **Python**: 3.8 or higher (3.9, 3.10, 3.11, 3.12 supported)
+- **Operating Systems**: Windows 10/11, macOS, Linux
+- **Memory**: Minimum 2GB RAM recommended
+- **Storage**: ~500MB for application and dependencies
+
+### Step-by-Step Installation Guide
+
+#### 1. Install Python
+Make sure Python 3.8+ is installed:
+```sh
+python --version  # Should show Python 3.8.x or higher
+```
+
+If not installed:
+- **Windows**: Download from [python.org](https://www.python.org/downloads/)
+- **macOS**: `brew install python@3.11` or download from python.org
+- **Linux**: Usually pre-installed, or `sudo apt install python3 python3-pip`
+
+#### 2. Install System Dependencies (Linux only)
+On Linux, tkinter needs to be installed separately:
+```sh
+# Ubuntu/Debian
+sudo apt install python3-tk
+
+# Fedora
+sudo dnf install python3-tkinter
+
+# Arch Linux
+sudo pacman -S tk
+```
+
+#### 3. Clone the Repository
 ```sh
 git clone https://github.com/Emy69/CoomerDL.git
-```
-### Install Dependencies
-Navigate to the project folder:
-```sh
 cd CoomerDL
 ```
-Then install the required dependencies:
+
+#### 4. Install Python Dependencies
 ```sh
 pip install -r requirements.txt
 ```
 
-### Optional: Install FFmpeg (Recommended for Universal Mode)
-FFmpeg is required for video/audio merging in Universal Mode:
-- **Windows**: Download from [ffmpeg.org](https://ffmpeg.org/download.html) or use `winget install ffmpeg`
+Or if you prefer using pip3:
+```sh
+pip3 install -r requirements.txt
+```
+
+#### 5. (Optional) Install FFmpeg
+For Universal Mode (yt-dlp) video/audio merging:
+- **Windows**: `winget install ffmpeg` or download from [ffmpeg.org](https://ffmpeg.org/download.html)
 - **macOS**: `brew install ffmpeg`
-- **Linux**: `sudo apt install ffmpeg` or equivalent
+- **Linux**: `sudo apt install ffmpeg`
 
-The app will show FFmpeg status in the Universal (yt-dlp) settings tab.
-
-### Run the Application
-Once everything is installed, you can start the application with:
+#### 6. Run the Application
 ```sh
 python main.py
 ```
 
-### Run Tests
-To run the test suite (241 tests, all offline):
+### Common Issues and Solutions
+
+#### Issue: `ModuleNotFoundError: No module named 'tkinter'`
+
+**Solution (Linux)**:
 ```sh
-pytest tests/
+sudo apt install python3-tk  # Ubuntu/Debian
+sudo dnf install python3-tkinter  # Fedora
+sudo pacman -S tk  # Arch Linux
 ```
+
+**Solution (Windows/macOS)**:
+Tkinter should come with Python. Reinstall Python from [python.org](https://www.python.org/downloads/) and make sure to check "Install tkinter" during installation.
+
+#### Issue: `TypeError: DownloadQueue.__init__() got an unexpected keyword argument`
+
+**Solution**:
+Make sure you're using the latest version of the code:
+```sh
+git pull origin main  # or master
+pip install -r requirements.txt --upgrade
+```
+
+#### Issue: `ModuleNotFoundError: No module named 'customtkinter'` (or other packages)
+
+**Solution**:
+Install/reinstall dependencies:
+```sh
+pip install -r requirements.txt --force-reinstall
+```
+
+#### Issue: FFmpeg not found
+
+**Solution**:
+1. Install FFmpeg (see step 5 above)
+2. Make sure FFmpeg is in your system PATH
+3. Verify installation: `ffmpeg -version`
+
+The app will work without FFmpeg, but video/audio merging in Universal Mode won't be available.
+
+#### Issue: `ImportError: cannot import name 'ImageDownloaderApp'`
+
+**Solution**:
+This usually means there's a syntax error or missing dependency. Check:
+```sh
+python -c "import app.ui"  # Test if module loads
+pip list  # Check installed packages
+```
+
+#### Issue: Downloads fail with 403/429 errors
+
+**Solution**:
+- **403 Forbidden**: Site may require cookies. Use browser cookie import feature in settings.
+- **429 Too Many Requests**: Rate limiting. Wait a few minutes and try again with lower concurrency.
+
+#### Issue: Application starts but UI doesn't show
+
+**Solution (Windows)**:
+```sh
+# Try running with pythonw instead of python
+pythonw main.py
+```
+
+**Solution (Linux/macOS)**:
+Check if you have a display server running. For headless servers, CoomerDL requires a GUI environment.
+
+#### Issue: High memory usage
+
+**Solution**:
+- Reduce concurrent downloads in settings
+- Clear completed downloads from queue
+- Restart the application periodically for long sessions
+
+#### Issue: Database locked errors
+
+**Solution**:
+Close other instances of CoomerDL. Only one instance should run at a time.
+
+### Getting Help
+
+If you encounter issues not listed here:
+
+1. **Check existing issues**: [GitHub Issues](https://github.com/Emy69/CoomerDL/issues)
+2. **Join Discord**: [Discord Server](https://discord.gg/ku8gSPsesh)
+3. **Create a new issue**: Include:
+   - Python version (`python --version`)
+   - OS and version
+   - Error message (full traceback)
+   - Steps to reproduce
 
 ---
 
