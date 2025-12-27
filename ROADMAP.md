@@ -186,58 +186,66 @@ CREATE TABLE downloads (
 
 ### Critical Issues
 
-1. **Undefined variable in downloader.py:194**
+1. **Undefined variable in `Downloader.safe_request()` method**
    ```python
    self.log(log_message)  # log_message not defined at this point
    ```
+   - Location: `downloader/downloader.py`, inside exception handler for status codes 429, 500-504
    - Fix: Define `log_message` before use or restructure error handling
 
-2. **SimpCity missing base_url**
+2. **SimpCity missing base_url in `process_page()` method**
    ```python
    self.process_page(self.base_url + next_page_url)  # self.base_url never set
    ```
-   - Fix: Extract base URL from initial URL in `download_images_from_simpcity`
+   - Location: `downloader/simpcity.py`, `process_page()` method when handling pagination
+   - Fix: Extract and store base URL from initial URL in `download_images_from_simpcity()`
 
-3. **Jpg5Downloader progress_manager import**
+3. **Jpg5Downloader unused import**
    ```python
    from app import progress_manager  # Unused import
    ```
-   - Fix: Remove unused import or use it properly
+   - Location: `downloader/jpg5.py`, top of file
+   - Fix: Remove unused import or integrate progress_manager properly
 
 ### Medium Priority
 
-4. **Inconsistent cancel mechanisms**
-   - `downloader.py`: `threading.Event()`
-   - `bunkr.py`: `self.cancel_requested = False` (boolean)
-   - Fix: Standardize to Event-based cancellation
+4. **Inconsistent cancel mechanisms across downloaders**
+   - `Downloader`: `threading.Event()` (proper)
+   - `BunkrDownloader`: `self.cancel_requested = False` (boolean flag)
+   - `EromeDownloader`: `self.cancel_requested = False` (boolean flag)
+   - `SimpCity`: `self.cancel_requested = False` (boolean flag)
+   - `Jpg5Downloader`: `threading.Event()` (proper)
+   - Fix: Standardize all to Event-based cancellation for thread-safety
 
 5. **Database connection not closed properly**
-   - `Downloader.init_db()` keeps connection open
-   - No `__del__` or context manager
-   - Fix: Use context manager or explicit cleanup
+   - Location: `Downloader.init_db()` keeps connection open indefinitely
+   - No `__del__` method or context manager implementation
+   - Fix: Use context manager pattern or explicit cleanup in `shutdown_executor()`
 
-6. **BunkrDownloader notification thread**
-   - Daemon thread runs indefinitely polling log_messages
-   - No clean shutdown mechanism
-   - Fix: Add shutdown flag or use different pattern
+6. **BunkrDownloader notification thread in `start_notification_thread()`**
+   - Daemon thread runs indefinitely polling `log_messages` list
+   - No clean shutdown mechanism when cancelling
+   - Fix: Add shutdown flag checked in loop or use different logging pattern
 
-7. **EromeDownloader folder_name undefined**
+7. **EromeDownloader folder_name scope issue in `process_album_page()`**
    ```python
    self.log(self.tr("Album download complete: {folder_name}", folder_name=folder_name))
    # folder_name may be undefined if direct_download is True
    ```
+   - Fix: Initialize `folder_name` with default before conditional block
 
 ### Low Priority
 
-8. **Hardcoded user agents**
-   - Different user agents across downloaders
-   - Fix: Centralize user agent configuration
+8. **Hardcoded user agents across downloaders**
+   - Different user agents in each downloader class
+   - Fix: Centralize user agent configuration in settings or constants
 
-9. **Mixed chunk sizes**
-   - `downloader.py`: 1048576 (1MB)
-   - `bunkr.py`: 65536 (64KB)
-   - `erome.py`: 65536 (64KB)
-   - Fix: Make chunk size configurable
+9. **Mixed chunk sizes for downloads**
+   - `Downloader`: 1048576 bytes (1MB)
+   - `BunkrDownloader`: 65536 bytes (64KB)
+   - `EromeDownloader`: 65536 bytes (64KB)
+   - `Jpg5Downloader`: 1024 bytes (1KB)
+   - Fix: Make chunk size configurable via settings
 
 10. **Inconsistent path handling**
     - Some use `os.path.join`, others concatenate strings
@@ -600,7 +608,8 @@ class DownloaderFactory:
 @DownloaderFactory.register
 class CoomerDownloader(BaseDownloader):
     def supports_url(self, url: str) -> bool:
-        return "coomer.st" in url or "kemono.cr" in url
+        # Supports both coomer and kemono sites
+        return any(domain in url for domain in ["coomer.su", "coomer.st", "kemono.su", "kemono.cr"])
     # ... implementation
 ```
 
@@ -657,8 +666,9 @@ class AppConfig:
                 with open(cls.CONFIG_PATH, 'r') as f:
                     data = json.load(f)
                 return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
-            except (json.JSONDecodeError, TypeError):
-                pass
+            except (json.JSONDecodeError, TypeError) as e:
+                # Log error but continue with defaults
+                print(f"Warning: Could not load config: {e}")
         return cls()
     
     def save(self):
@@ -686,14 +696,15 @@ class AppLogger:
         self.logger = logging.getLogger("CoomerDL")
         self.logger.setLevel(logging.DEBUG)
         
-        # File handler with rotation
+        # File handler with rotation (uses TimedRotatingFileHandler for daily logs)
         log_dir = Path("resources/config/logs")
         log_dir.mkdir(parents=True, exist_ok=True)
         
+        # Use a fixed base name; rotation handles date-based files
         file_handler = RotatingFileHandler(
-            log_dir / f"coomer_{datetime.now():%Y%m%d}.log",
+            log_dir / "coomer.log",
             maxBytes=5*1024*1024,  # 5MB
-            backupCount=5
+            backupCount=10
         )
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(logging.Formatter(
