@@ -205,7 +205,23 @@ class BaseDownloader(ABC):
             self.log_callback(message)
     
     def report_progress(self, downloaded: int, total: int, **kwargs) -> None:
-        """Report per-file download progress."""
+        """
+        Report per-file download progress.
+        
+        Standard metadata fields (recommended for consistent event handling):
+            file_id: Stable unique identifier for the file within this job
+            file_path: Local path where the file is being saved
+            filename: Just the filename (if file_path not known)
+            url: Source URL of the file
+            status: Current status string (e.g., "Downloading", "Processing")
+            speed: Download speed in bytes/second
+            eta: Estimated time remaining in seconds
+        
+        Args:
+            downloaded: Bytes downloaded so far for current file.
+            total: Total bytes for current file (0 if unknown).
+            **kwargs: Additional metadata fields.
+        """
         if self.progress_callback:
             self.progress_callback(downloaded, total, kwargs)
     
