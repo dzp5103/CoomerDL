@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def check_ffmpeg() -> bool:
     """
     Check if FFmpeg is available in the system PATH.
-    
+
     Returns:
         True if FFmpeg is found and executable, False otherwise.
     """
@@ -22,7 +22,7 @@ def check_ffmpeg() -> bool:
     if ffmpeg_path:
         logger.debug(f"FFmpeg found at: {ffmpeg_path}")
         return True
-    
+
     logger.warning(
         "FFmpeg not found in system PATH. "
         "Some video merging and conversion features will be unavailable. "
@@ -34,7 +34,7 @@ def check_ffmpeg() -> bool:
 def get_ffmpeg_path() -> Optional[str]:
     """
     Get the path to the FFmpeg executable.
-    
+
     Returns:
         Path to FFmpeg executable, or None if not found.
     """
@@ -44,14 +44,14 @@ def get_ffmpeg_path() -> Optional[str]:
 def get_ffmpeg_version() -> Optional[str]:
     """
     Get the installed FFmpeg version string.
-    
+
     Returns:
         Version string, or None if FFmpeg is not available.
     """
     ffmpeg_path = get_ffmpeg_path()
     if not ffmpeg_path:
         return None
-    
+
     try:
         result = subprocess.run(
             [ffmpeg_path, '-version'],
@@ -65,21 +65,21 @@ def get_ffmpeg_version() -> Optional[str]:
             return first_line
     except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
         pass
-    
+
     return None
 
 
 def check_ffmpeg_capabilities() -> Tuple[bool, bool, bool]:
     """
     Check FFmpeg capabilities for common operations.
-    
+
     Returns:
         Tuple of (can_merge_video_audio, can_convert_to_mp4, can_embed_metadata)
     """
     ffmpeg_path = get_ffmpeg_path()
     if not ffmpeg_path:
         return (False, False, False)
-    
+
     try:
         # Check for common encoders/capabilities
         result = subprocess.run(
@@ -97,14 +97,14 @@ def check_ffmpeg_capabilities() -> Tuple[bool, bool, bool]:
             return (can_merge, can_convert, can_embed_metadata)
     except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
         pass
-    
+
     return (False, False, False)
 
 
 def check_ffprobe() -> bool:
     """
     Check if FFprobe is available (comes with FFmpeg).
-    
+
     Returns:
         True if FFprobe is found, False otherwise.
     """
