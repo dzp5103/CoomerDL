@@ -18,7 +18,7 @@
 ## Current State Analysis
 
 ### Strengths
-- **Multi-site support**: Supports coomer.su, kemono.su, erome.com, bunkr, simpcity.su, jpg5.su
+- **Multi-site support**: Supports coomer.su, kemono.su, erome.com, bunkr-albums.io, simpcity.su, jpg5.su
 - **Multi-threaded downloads**: Configurable concurrent download workers
 - **Progress tracking**: Real-time progress bars with speed and ETA
 - **SQLite database**: Tracks downloaded files to avoid duplicates
@@ -28,7 +28,7 @@
 - **Flexible file naming**: 4 different naming modes
 
 ### Current Limitations
-- **Monolithic UI code**: `ui.py` is over 1200 lines, mixing concerns
+- **Monolithic UI code**: `ui.py` is over 1200+ lines (as of December 2024), mixing concerns
 - **Inconsistent downloader interfaces**: Each site downloader has different signatures
 - **Limited error recovery**: Some downloaders lack robust retry mechanisms
 - **No download queue management UI**: Can't pause/resume/reorder downloads
@@ -225,18 +225,29 @@
 **Proposed Changes:**
 - [ ] Create abstract `BaseDownloader` class:
 ```python
+from abc import ABC, abstractmethod
+from typing import List
+
 class BaseDownloader(ABC):
     @abstractmethod
-    def download_profile(self, url: str, options: DownloadOptions) -> DownloadResult
+    def download_profile(self, url: str, options: DownloadOptions) -> DownloadResult:
+        """Download all media from a user profile."""
+        pass
     
     @abstractmethod
-    def download_post(self, url: str, options: DownloadOptions) -> DownloadResult
+    def download_post(self, url: str, options: DownloadOptions) -> DownloadResult:
+        """Download media from a single post."""
+        pass
     
     @abstractmethod
-    def get_media_urls(self, url: str) -> List[MediaItem]
+    def get_media_urls(self, url: str) -> List[MediaItem]:
+        """Extract media URLs from a page without downloading."""
+        pass
     
     @abstractmethod
-    def supports_url(self, url: str) -> bool
+    def supports_url(self, url: str) -> bool:
+        """Check if this downloader can handle the given URL."""
+        pass
 ```
 - [ ] Implement consistent error handling
 - [ ] Unified progress reporting
@@ -410,9 +421,13 @@ class BaseDownloader(ABC):
 - Document all breaking changes
 
 ### Dependencies to Evaluate
-- Consider `httpx` for async HTTP (replaces requests)
+- Consider `httpx` for HTTP client (can replace requests)
+  - Benefits: Native async/await support, HTTP/2 support, connection pooling
+  - Note: httpx also supports synchronous usage, allowing gradual migration
 - Consider `pydantic` for settings validation
+  - Benefits: Type safety, automatic validation, serialization
 - Evaluate `ttkbootstrap` for enhanced theming
+  - Benefits: Modern Bootstrap-like themes, consistent styling
 - Consider `pyinstaller` hooks for new dependencies
 
 ---
