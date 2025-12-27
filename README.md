@@ -7,6 +7,35 @@
 
 ---
 
+## 📋 Quick Summary (for AI Agents)
+
+**What**: Multi-threaded downloader for adult content sites (coomer, kemono, erome, bunkr, simpcity, jpg5)  
+**Tech Stack**: Python 3.8+, CustomTkinter (GUI), SQLite (download tracking), requests (HTTP)  
+**Architecture**: 
+- `app/` - UI components (CustomTkinter)
+- `downloader/` - Site-specific downloaders (threading-based)
+- `resources/config/` - Settings JSON, SQLite DB, cookies
+
+**Key Features**:
+- ✅ Thread-safe cancellation with `threading.Event()`
+- ✅ Progress tracking with throttled callbacks (10 FPS)
+- ✅ SQLite caching for duplicate detection (indexed queries)
+- ✅ Connection pooling for faster downloads
+- ✅ Multi-language support (i18n)
+
+**Performance**:
+- Startup: <1s (with indexed DB queries)
+- Memory: ~25MB baseline (no cache preload)
+- Concurrent downloads: 5-20 threads (configurable)
+
+**For Development**:
+- See `ROADMAP.md` for tasks and priorities
+- See `AI_AGENT_WORKFLOW.md` for development workflows
+- See `.github/agents/` for specialized AI agents
+- Use `python main.py` to run the application
+
+---
+
 ## Support My Work
 
 If you find this tool helpful, please consider supporting my efforts:

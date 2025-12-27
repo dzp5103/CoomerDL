@@ -4,6 +4,48 @@
 
 ---
 
+## 🏗️ Quick Summary (AI Implementation Guide)
+
+**What This Is**: Blueprints for new code - classes, functions, modules, and UI components
+
+**When to Use**:
+- Before implementing new features (FEATURE-* tasks)
+- When creating new modules or classes
+- When designing API contracts
+
+**Key Sections**:
+1. **New Classes** - BaseDownloader, QueueManager, ProxyManager (abstract/concrete specs)
+2. **New Functions** - Utility functions with signatures and examples
+3. **New Modules** - File structure for new components (`app/window/`, `app/dialogs/`)
+4. **UI Components** - CustomTkinter widget specs and layouts
+5. **Configuration Schema** - JSON structure for settings
+6. **Database Schema** - SQLite tables and indexes
+7. **API Contracts** - Internal API specifications
+
+**How to Use**:
+1. Find the component you need to implement (e.g., BaseDownloader)
+2. Copy the provided code skeleton
+3. Implement the abstract methods
+4. Follow the type hints and docstrings
+5. Test against the examples provided
+
+**Code Style**:
+- All classes: Type hints, docstrings, dataclasses where appropriate
+- All functions: Return type, parameter types, docstring with examples
+- UI: CustomTkinter widgets, consistent naming (frame_*, btn_*, entry_*)
+
+**Example Workflow**:
+```
+Task: Implement FEATURE-002 (BaseDownloader)
+→ Read BaseDownloader spec in this file
+→ Copy skeleton to downloader/base.py
+→ Implement abstract methods
+→ Update existing downloaders to inherit from BaseDownloader
+→ Test each downloader still works
+```
+
+---
+
 ## Table of Contents
 
 1. [New Classes](#new-classes)

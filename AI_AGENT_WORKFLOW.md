@@ -1,5 +1,55 @@
 # AI Agent Optimized Workflow for CoomerDL
 
+---
+
+## ⚡ Quick Summary (Start Here!)
+
+**What**: Step-by-step workflows for AI agents working on CoomerDL
+
+**When to Use**: Before starting any task (BUG, PERF, FEATURE, REFACTOR, ARCH)
+
+**Key Workflows**:
+1. **Critical Bug Fix** (15-30 min) - Single file, small change, immediate test
+2. **Performance Optimization** (1-3 hours) - Benchmark → Optimize → Validate
+3. **Feature Addition** (2-8 hours) - Research → Design → Implement → Test → Document
+4. **Refactoring** (4-12 hours) - Assess → Plan → Transform incrementally → Verify
+
+**Quick Start**:
+```bash
+# 1. Choose workflow pattern based on task type
+BUG-* → Pattern 1 (Bug Fix)
+PERF-* → Pattern 2 (Performance)
+FEATURE-* → Pattern 3 (Feature)
+REFACTOR-* → Pattern 4 (Refactoring)
+
+# 2. Follow the numbered steps in that pattern
+# 3. Use the example as a template
+# 4. Test with: python main.py
+# 5. Report progress when done
+```
+
+**Essential Commands**:
+- View file: `view /path/to/file.py`
+- Search: `grep "pattern" /path/`
+- Edit: `edit /path/to/file.py old_str="..." new_str="..."`
+- Run: `python main.py`
+- Test: `python -c "from module import Class; print('OK')"`
+
+**File Locations** (memorize these):
+- Main UI: `app/ui.py` (1226 lines)
+- Core downloader: `downloader/downloader.py` (761 lines)
+- Site downloaders: `downloader/{bunkr,erome,simpcity,jpg5}.py`
+- Settings: `app/settings_window.py`
+- Progress: `app/progress_manager.py`
+
+**Common Patterns**:
+- Threading: `self.cancel_event = threading.Event()` + `if self.cancel_event.is_set()`
+- Database: `with self.db_lock:` + indexed queries
+- Progress: Throttle to 0.1s intervals
+- Sessions: Reuse `requests.Session()`
+
+---
+
 ## Purpose
 
 This document provides AI coding agents with an optimized workflow for working on CoomerDL tasks. It includes step-by-step procedures, common patterns, and best practices.

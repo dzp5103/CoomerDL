@@ -23,7 +23,7 @@ class BunkrDownloader:
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
             'Accept-Language': 'en-US,en;q=0.9',
         }
-        self.cancel_requested = False  # Flag to indicate if a cancellation request has been made
+        self.cancel_event = threading.Event()  # Thread-safe cancellation event
         self.executor = ThreadPoolExecutor(max_workers=max_workers)  # Thread pool executor for concurrent downloads
         self.total_files = 0
         self.completed_files = 0
@@ -34,14 +34,16 @@ class BunkrDownloader:
         self.translations = translations or {}  
 
     def start_notification_thread(self):
+        self._notification_shutdown = threading.Event()
+        
         def notify_user():
-            while not self.cancel_requested:
+            while not self._notification_shutdown.is_set():
                 if self.log_messages:
                     # Enviar todos los mensajes acumulados
                     if self.log_callback:
                         self.log_callback("\n".join(self.log_messages))
                     self.log_messages.clear()
-                time.sleep(self.notification_interval)
+                time.sleep(self.notification_interval if self.notification_interval > 0 else 0.1)
 
         # Iniciar un hilo para notificaciones periódicas
         notification_thread = threading.Thread(target=notify_user, daemon=True)
@@ -58,11 +60,15 @@ class BunkrDownloader:
         self.log_messages.append(full_message)  # Agregar mensaje a la cola
 
     def request_cancel(self):
-        self.cancel_requested = True
+        self.cancel_event.set()
+        if hasattr(self, '_notification_shutdown'):
+            self._notification_shutdown.set()
         self.log("Download has been cancelled.")
         self.shutdown_executor()
 
     def shutdown_executor(self):
+        if hasattr(self, '_notification_shutdown'):
+            self._notification_shutdown.set()
         self.executor.shutdown(wait=False)
         self.log("Executor shut down.")
 
@@ -76,7 +82,7 @@ class BunkrDownloader:
         return self.clean_filename(folder_name)
 
     def download_file(self, url_media, ruta_carpeta, file_id):
-        if self.cancel_requested:
+        if self.cancel_event.is_set():
             self.log("Descarga cancelada", url=url_media)
             return
 
@@ -104,7 +110,7 @@ class BunkrDownloader:
                 # Descargar el archivo en fragmentos
                 with open(file_path, 'wb') as file:
                     for chunk in response.iter_content(chunk_size=65536):  # Fragmentos de 64KB
-                        if self.cancel_requested:
+                        if self.cancel_event.is_set():
                             self.log("Descarga cancelada durante la descarga del archivo.", url=url_media)
                             file.close()
                             os.remove(file_path)
@@ -259,7 +265,7 @@ class BunkrDownloader:
                 with ThreadPoolExecutor(max_workers=self.max_downloads) as executor:
                     futures = [executor.submit(self.download_file, url, folder, str(uuid.uuid4())) for url, folder in media_urls]
                     for future in as_completed(futures):
-                        if self.cancel_requested:
+                        if self.cancel_event.is_set():
                             self.log("Cancelando descargas restantes.")
                             break
                         future.result()
@@ -272,6 +278,9 @@ class BunkrDownloader:
             self.log(f"Error al procesar el post {url_post}: {e}")
             if self.enable_widgets_callback:
                 self.enable_widgets_callback()
+        finally:
+            if hasattr(self, '_notification_shutdown'):
+                self._notification_shutdown.set()
 
 
     def descargar_perfil_bunkr(self, url_perfil):
@@ -301,7 +310,7 @@ class BunkrDownloader:
                     links = grid_div.find_all('a', {'class': 'after:absolute after:z-10 after:inset-0'})
                     total_links = len(links)
                     for idx, link in enumerate(links):
-                        if self.cancel_requested:
+                        if self.cancel_event.is_set():
                             self.log("Cancelling remaining downloads.")
                             break
 
@@ -339,7 +348,7 @@ class BunkrDownloader:
                 
                 # Only after all futures are done, enable widgets again
                 for future in as_completed(futures):
-                    if self.cancel_requested:
+                    if self.cancel_event.is_set():
                         self.log("Cancelling remaining downloads.")
                         break
                     future.result()
@@ -353,6 +362,9 @@ class BunkrDownloader:
             self.log(f"Failed to access the profile {url_perfil}: {e}")
             if self.enable_widgets_callback:
                 self.enable_widgets_callback()
+        finally:
+            if hasattr(self, '_notification_shutdown'):
+                self._notification_shutdown.set()
 
     def set_max_downloads(self, max_downloads):
         self.max_downloads = max_downloads
