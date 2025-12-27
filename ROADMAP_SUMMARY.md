@@ -1,5 +1,38 @@
 # CoomerDL Roadmap Summary
 
+---
+
+## 🎯 Quick Overview (AI Agent Fast Track)
+
+**Purpose**: Prioritized task list - pick tasks by priority and start working immediately
+
+**At a Glance**:
+- 🔴 **2 Critical bugs** → 35 minutes (fix these first!)
+- 🟠 **7 High priority** → 53 hours (important features)
+- 🟡 **11 Medium priority** → 34 hours (nice improvements)
+- 🟢 **3 Low priority** → 6 hours (polish)
+
+**Recommended Approach**:
+1. Start with 🔴 CRITICAL bugs (BUG-001, BUG-002)
+2. Move to 🟠 HIGH features (BaseDownloader, UI split, queue manager)
+3. Then 🟡 MEDIUM improvements (filters, proxy, bandwidth)
+4. Finally 🟢 LOW enhancements (polish)
+
+**Each Task Includes**:
+- ⏱️ Time estimate
+- 📁 Exact file location
+- 🔧 Problem description
+- ✅ Fix/implementation details
+- 🧪 Test instructions
+
+**Jump to**:
+- [Critical Tasks](#priority-1--critical-fix-immediately) - Start here
+- [High Priority](#priority-2--high-do-soon) - Next focus
+- [Quick Wins](#quick-wins-under-1-hour) - Easy points
+- [Dependency Graph](#task-dependencies) - What requires what
+
+---
+
 ## Quick Reference for AI Agents
 
 This document provides a prioritized summary of all tasks from ROADMAP.md organized by priority and actionability.

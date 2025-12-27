@@ -4,6 +4,50 @@
 
 ---
 
+## ⚠️ Quick Summary (AI Agent Alert System)
+
+**What**: Known problems, limitations, and gotchas that might break your implementation
+
+**When to Check**: 
+- Before starting any task (scan for related issues)
+- When encountering unexpected behavior
+- When tests fail mysteriously
+
+**Top Issues to Know**:
+1. **Rate Limiting** (All sites) - Add delays, expect 429 errors during testing
+2. **Cloudflare** (SimpCity/Bunkr) - Use cloudscraper, may need cookies
+3. **UI Threading** (CTk) - Must use `.after()` or queue for UI updates from worker threads
+4. **DB Locking** (SQLite) - Always use `with self.db_lock:` for all DB operations
+5. **CTk Limitations** - Some widgets don't support all features (check docs)
+
+**Quick Checks**:
+```python
+# Before implementing download feature:
+→ Check if site uses rate limiting (ISSUE-001)
+→ Check if site uses Cloudflare (ISSUE-002)
+
+# Before implementing UI feature:
+→ Check CTk widget support (ISSUE-003)
+→ Check thread safety requirements (ISSUE-004)
+
+# Before implementing DB feature:
+→ Check locking requirements (ISSUE-005)
+```
+
+**Resolution Status Key**:
+- ✅ **Resolved**: Problem fixed, safe to ignore
+- 🔧 **Workaround**: Solution exists, follow the pattern
+- ⚠️ **Known**: Issue documented, plan around it
+- 🔴 **Blocker**: Must be fixed before proceeding
+
+**Most Common Mistakes**:
+1. Forgetting `db_lock` → SQLite locking errors
+2. Direct UI updates from threads → App freezes
+3. No rate limit handling → 429 errors
+4. Not checking cancel_event → Downloads don't stop
+
+---
+
 ## Quick Reference
 
 | Issue | Affects Tasks | Severity | Status |

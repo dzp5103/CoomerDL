@@ -1,5 +1,44 @@
 # CoomerDL Improvement Roadmap
 
+---
+
+## 🎯 Executive Summary (AI Agent Quick Reference)
+
+**Purpose**: Complete guide for AI agents working on CoomerDL improvements
+
+**Quick Stats**:
+- **Total Tasks**: 71 (17 bugs, 24 features, 15 refactors, 15 tests/docs)
+- **Critical Bugs**: 4 (BUG-001 to BUG-004)
+- **High Priority**: 12 tasks
+- **Code Size**: ~3,000 lines across 10 main files
+
+**Common Task Types**:
+1. **Bug Fixes** (15-30 min): Single-line to small fixes, test with `python main.py`
+2. **Refactoring** (1-3 hours): Standardize patterns, improve code quality
+3. **Features** (2-8 hours): New UI/functionality, requires design + testing
+4. **Architecture** (4-12 hours): Large structural changes, multi-file coordination
+
+**Key Patterns**:
+- Threading: Use `threading.Event()` for cancellation (not boolean flags)
+- Database: Use indexed queries with `db_lock` (no full table scans)
+- Progress: Throttle callbacks to 0.1s intervals (10 FPS max)
+- Sessions: Reuse `requests.Session()` with connection pooling
+
+**Priority Guide**:
+- 🔴 CRITICAL → Fix immediately (crashes, data loss)
+- 🟠 HIGH → Fix soon (important features, major bugs)
+- 🟡 MEDIUM → Nice to have (improvements, minor bugs)
+- 🟢 LOW → Optional (polish, edge cases)
+
+**Workflow**:
+1. Choose task from [Task Index](#task-index)
+2. Read full task details (FILE, PROBLEM, SOLUTION, DONE WHEN)
+3. Check dependencies (some tasks require others first)
+4. Follow pattern in `AI_AGENT_WORKFLOW.md`
+5. Test with `python main.py` and verify acceptance criteria
+
+---
+
 > **For AI Coding Agents**: This document is optimized for AI agents. Start with [Quick Start for Agents](#quick-start-for-agents), then use [Task Index](#task-index) to find specific work items. Each task has clear acceptance criteria and file locations.
 
 > **For Humans**: This document outlines proposed improvements for CoomerDL. See [TASKS.md](TASKS.md) for detailed task breakdowns and [SPECIFICATIONS.md](SPECIFICATIONS.md) for implementation details.
