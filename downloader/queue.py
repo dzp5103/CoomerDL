@@ -381,15 +381,19 @@ class DownloadQueueManager:
                 self._emit_event(job_cancelled_event(job))
             elif result.success:
                 job.mark_completed()
-                self._emit_event(job_done_event(job))
             else:
                 job.mark_failed(result.error_message or "Download failed")
                 self._emit_event(job_error_event(job, job.error_message))
+            
+            # Always emit JOB_DONE at the end (per CONTRACTS.md)
+            self._emit_event(job_done_event(job))
             
         except Exception as e:
             logger.exception(f"Job {job.id} failed: {e}")
             job.mark_failed(str(e))
             self._emit_event(job_error_event(job, str(e)))
+            # Emit JOB_DONE even after error (per CONTRACTS.md)
+            self._emit_event(job_done_event(job))
         
         finally:
             # Remove from active downloaders
