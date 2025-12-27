@@ -89,16 +89,18 @@ class DownloadQueue:
     
     QUEUE_FILE = Path("resources/config/queue.json")
     
-    def __init__(self, on_change: Optional[Callable[[], None]] = None):
+    def __init__(self, on_change: Optional[Callable[[], None]] = None, persist_file: Optional[str] = None):
         """
         Initialize the download queue.
         
         Args:
             on_change: Callback invoked when queue changes
+            persist_file: Path to the persistence file (default: resources/config/queue.json)
         """
         self._items: List[QueueItem] = []
         self._lock = threading.RLock()
         self._on_change = on_change
+        self.QUEUE_FILE = Path(persist_file) if persist_file else self.QUEUE_FILE
         self._load()
     
     def _load(self) -> None:
