@@ -54,8 +54,11 @@ class TestDownloaderFactoryRegistration:
         DownloaderFactory.register(DummyDownloader)
         
         sites = DownloaderFactory.get_supported_sites()
-        assert len(sites) == 1
+        # Sites now includes yt-dlp universal support
         assert "DummySite" in sites
+        # Check that DummySite is in the native downloaders (not yt-dlp)
+        native_sites = [s for s in sites if "yt-dlp" not in s]
+        assert len(native_sites) == 1
     
     def test_register_multiple_downloaders(self):
         """Test registering multiple downloaders."""
@@ -63,9 +66,11 @@ class TestDownloaderFactoryRegistration:
         DownloaderFactory.register(AnotherDummyDownloader)
         
         sites = DownloaderFactory.get_supported_sites()
-        assert len(sites) == 2
         assert "DummySite" in sites
         assert "AnotherSite" in sites
+        # Check native downloaders count
+        native_sites = [s for s in sites if "yt-dlp" not in s]
+        assert len(native_sites) == 2
     
     def test_register_same_downloader_twice(self):
         """Test that registering same downloader twice doesn't duplicate."""
@@ -73,7 +78,9 @@ class TestDownloaderFactoryRegistration:
         DownloaderFactory.register(DummyDownloader)
         
         sites = DownloaderFactory.get_supported_sites()
-        assert len(sites) == 1
+        # Check native downloaders count (should be 1, not duplicated)
+        native_sites = [s for s in sites if "yt-dlp" not in s]
+        assert len(native_sites) == 1
     
     def test_register_as_decorator(self):
         """Test using register as a decorator."""
@@ -94,10 +101,12 @@ class TestDownloaderFactoryRegistration:
     def test_clear_registry(self):
         """Test clearing the registry."""
         DownloaderFactory.register(DummyDownloader)
-        assert len(DownloaderFactory.get_supported_sites()) == 1
+        native_sites_before = [s for s in DownloaderFactory.get_supported_sites() if "yt-dlp" not in s]
+        assert len(native_sites_before) == 1
         
         DownloaderFactory.clear_registry()
-        assert len(DownloaderFactory.get_supported_sites()) == 0
+        native_sites_after = [s for s in DownloaderFactory.get_supported_sites() if "yt-dlp" not in s]
+        assert len(native_sites_after) == 0
 
 
 class TestDownloaderFactorySelection:
@@ -117,15 +126,33 @@ class TestDownloaderFactorySelection:
         assert downloader.download_folder == download_folder
     
     def test_get_downloader_no_match(self, download_folder):
-        """Test that no downloader is returned for unsupported URL."""
+        """Test that no downloader is returned for unsupported URL when fallbacks disabled."""
         DownloaderFactory.register(DummyDownloader)
         
         downloader = DownloaderFactory.get_downloader(
             url="https://unsupported.com/test",
-            download_folder=download_folder
+            download_folder=download_folder,
+            use_generic_fallback=False,
+            use_ytdlp_fallback=False
         )
         
         assert downloader is None
+    
+    def test_get_downloader_ytdlp_fallback(self, download_folder):
+        """Test that yt-dlp downloader is used as fallback for supported URLs."""
+        DownloaderFactory.register(DummyDownloader)
+        
+        # URL that doesn't match DummyDownloader but should be handled by yt-dlp
+        downloader = DownloaderFactory.get_downloader(
+            url="https://youtube.com/watch?v=test",
+            download_folder=download_folder,
+            use_ytdlp_fallback=True,
+            use_generic_fallback=False
+        )
+        
+        # Should get YtDlpDownloader since URL is http/https and not in native domains
+        assert downloader is not None
+        assert downloader.get_site_name() == "Universal (yt-dlp)"
     
     def test_get_downloader_first_match(self, download_folder):
         """Test that first matching downloader is returned."""
@@ -189,15 +216,19 @@ class TestDownloaderFactorySupportedSites:
         """Test getting supported sites with no registered downloaders."""
         sites = DownloaderFactory.get_supported_sites()
         assert isinstance(sites, list)
-        assert len(sites) == 0
+        # Only yt-dlp should be present when no native downloaders registered
+        native_sites = [s for s in sites if "yt-dlp" not in s]
+        assert len(native_sites) == 0
     
     def test_get_supported_sites_single(self):
         """Test getting supported sites with one downloader."""
         DownloaderFactory.register(DummyDownloader)
         
         sites = DownloaderFactory.get_supported_sites()
-        assert len(sites) == 1
-        assert sites[0] == "DummySite"
+        assert "DummySite" in sites
+        native_sites = [s for s in sites if "yt-dlp" not in s]
+        assert len(native_sites) == 1
+        assert native_sites[0] == "DummySite"
     
     def test_get_supported_sites_multiple(self):
         """Test getting supported sites with multiple downloaders."""
@@ -205,6 +236,14 @@ class TestDownloaderFactorySupportedSites:
         DownloaderFactory.register(AnotherDummyDownloader)
         
         sites = DownloaderFactory.get_supported_sites()
-        assert len(sites) == 2
         assert "DummySite" in sites
         assert "AnotherSite" in sites
+        native_sites = [s for s in sites if "yt-dlp" not in s]
+        assert len(native_sites) == 2
+    
+    def test_get_supported_sites_includes_ytdlp(self):
+        """Test that yt-dlp universal support is included."""
+        sites = DownloaderFactory.get_supported_sites()
+        ytdlp_sites = [s for s in sites if "yt-dlp" in s]
+        assert len(ytdlp_sites) == 1
+        assert "Universal" in ytdlp_sites[0]
