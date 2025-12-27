@@ -385,14 +385,14 @@ class DownloadQueueManager:
                 job.mark_failed(result.error_message or "Download failed")
                 self._emit_event(job_error_event(job, job.error_message))
             
-            # Always emit JOB_DONE at the end (per CONTRACTS.md)
+            # Always emit JOB_DONE at the end (per tests/CONTRACTS.md)
             self._emit_event(job_done_event(job))
             
         except Exception as e:
             logger.exception(f"Job {job.id} failed: {e}")
             job.mark_failed(str(e))
             self._emit_event(job_error_event(job, str(e)))
-            # Emit JOB_DONE even after error (per CONTRACTS.md)
+            # Emit JOB_DONE even after error (per tests/CONTRACTS.md)
             self._emit_event(job_done_event(job))
         
         finally:
