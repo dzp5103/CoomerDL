@@ -7,7 +7,7 @@ import json
 import os
 import sqlite3
 import threading
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pathlib import Path
 
 from downloader.models import (
@@ -78,6 +78,19 @@ class DownloadHistoryDB:
                     )
                 ''')
                 
+                # Job items table for crash-resume
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS job_items (
+                        job_id TEXT NOT NULL,
+                        item_key TEXT NOT NULL,
+                        status TEXT NOT NULL,
+                        file_path TEXT,
+                        updated_at TEXT NOT NULL,
+                        PRIMARY KEY (job_id, item_key),
+                        FOREIGN KEY (job_id) REFERENCES jobs(job_id)
+                    )
+                ''')
+                
                 # Create indexes for common queries
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_jobs_status 
@@ -90,6 +103,10 @@ class DownloadHistoryDB:
                 cursor.execute('''
                     CREATE INDEX IF NOT EXISTS idx_events_job_id 
                     ON events(job_id)
+                ''')
+                cursor.execute('''
+                    CREATE INDEX IF NOT EXISTS idx_job_items_job_id 
+                    ON job_items(job_id)
                 ''')
                 
                 conn.commit()
@@ -279,7 +296,13 @@ class DownloadHistoryDB:
             try:
                 cursor = conn.cursor()
                 
-                # Delete events first (foreign key)
+                # Delete job items first (foreign key)
+                cursor.execute(
+                    'DELETE FROM job_items WHERE job_id = ?',
+                    (job_id,)
+                )
+                
+                # Delete events (foreign key)
                 cursor.execute(
                     'DELETE FROM events WHERE job_id = ?',
                     (job_id,)
@@ -294,6 +317,189 @@ class DownloadHistoryDB:
                 deleted = cursor.rowcount > 0
                 conn.commit()
                 return deleted
+            finally:
+                conn.close()
+    
+    # =========================================================================
+    # Job Items API (for crash-resume)
+    # =========================================================================
+    
+    def mark_job_item_done(
+        self,
+        job_id: str,
+        item_key: str,
+        file_path: str,
+        status: str = "completed"
+    ) -> None:
+        """
+        Mark a job item as completed/skipped/failed.
+        
+        Args:
+            job_id: The job ID.
+            item_key: Unique identifier for the item (canonical URL or ID).
+            file_path: Local path where the file was saved.
+            status: Status string (completed, skipped, failed).
+        """
+        from datetime import datetime, timezone
+        
+        with self._lock:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    INSERT OR REPLACE INTO job_items 
+                    (job_id, item_key, status, file_path, updated_at)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (
+                    job_id,
+                    item_key,
+                    status,
+                    file_path,
+                    datetime.now(timezone.utc).isoformat()
+                ))
+                
+                conn.commit()
+            finally:
+                conn.close()
+    
+    def get_job_items(self, job_id: str) -> List[Dict[str, str]]:
+        """
+        Get all items for a job.
+        
+        Args:
+            job_id: The job ID.
+            
+        Returns:
+            List of item dictionaries with keys: item_key, status, file_path.
+        """
+        with self._lock:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT item_key, status, file_path, updated_at
+                    FROM job_items
+                    WHERE job_id = ?
+                ''', (job_id,))
+                
+                return [dict(row) for row in cursor.fetchall()]
+            finally:
+                conn.close()
+    
+    def get_completed_item_keys(self, job_id: str) -> set:
+        """
+        Get set of completed item keys for a job.
+        
+        Useful for resume logic - skip items already done.
+        
+        Args:
+            job_id: The job ID.
+            
+        Returns:
+            Set of item keys that are completed or skipped.
+        """
+        with self._lock:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT item_key FROM job_items
+                    WHERE job_id = ? AND status IN ('completed', 'skipped')
+                ''', (job_id,))
+                
+                return {row[0] for row in cursor.fetchall()}
+            finally:
+                conn.close()
+    
+    def update_job_status(
+        self,
+        job_id: str,
+        status: str,
+        started_at: Optional[str] = None,
+        finished_at: Optional[str] = None,
+        error_message: Optional[str] = None,
+        counters: Optional[Dict[str, int]] = None
+    ) -> bool:
+        """
+        Update job status and optionally other fields.
+        
+        Args:
+            job_id: The job ID.
+            status: New status string.
+            started_at: Optional started timestamp.
+            finished_at: Optional finished timestamp.
+            error_message: Optional error message.
+            counters: Optional dict with total_items, completed_items, etc.
+            
+        Returns:
+            True if job was updated, False if not found.
+        """
+        with self._lock:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                cursor = conn.cursor()
+                
+                # Build update query dynamically
+                updates = ['status = ?']
+                params = [status]
+                
+                if started_at is not None:
+                    updates.append('started_at = ?')
+                    params.append(started_at)
+                
+                if finished_at is not None:
+                    updates.append('finished_at = ?')
+                    params.append(finished_at)
+                
+                if error_message is not None:
+                    updates.append('error_message = ?')
+                    params.append(error_message)
+                
+                if counters:
+                    for key in ['total_items', 'completed_items', 'failed_items', 'skipped_items']:
+                        if key in counters:
+                            updates.append(f'{key} = ?')
+                            params.append(counters[key])
+                
+                params.append(job_id)
+                
+                cursor.execute(
+                    f'UPDATE jobs SET {", ".join(updates)} WHERE job_id = ?',
+                    params
+                )
+                
+                updated = cursor.rowcount > 0
+                conn.commit()
+                return updated
+            finally:
+                conn.close()
+    
+    def get_resumable_jobs(self) -> List[DownloadJob]:
+        """
+        Get jobs that were interrupted and can be resumed.
+        
+        Returns jobs in RUNNING or PENDING state.
+        
+        Returns:
+            List of jobs that can be resumed.
+        """
+        with self._lock:
+            conn = sqlite3.connect(self.db_path)
+            try:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                
+                cursor.execute('''
+                    SELECT * FROM jobs 
+                    WHERE status IN ('running', 'pending')
+                    ORDER BY created_at ASC
+                ''')
+                
+                return [self._row_to_job(row) for row in cursor.fetchall()]
             finally:
                 conn.close()
     

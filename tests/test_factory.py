@@ -56,6 +56,11 @@ def clear_factory_registry():
     DownloaderFactory.clear_registry()
 
 
+def _get_native_sites(sites):
+    """Filter out universal downloaders (yt-dlp and gallery-dl) from site list."""
+    return [s for s in sites if "yt-dlp" not in s and "gallery-dl" not in s]
+
+
 class TestDownloaderFactoryRegistration:
     """Test downloader registration in factory."""
     
@@ -64,10 +69,10 @@ class TestDownloaderFactoryRegistration:
         DownloaderFactory.register(DummyDownloader)
         
         sites = DownloaderFactory.get_supported_sites()
-        # Sites now includes yt-dlp universal support
+        # Sites now includes yt-dlp and gallery-dl universal support
         assert "DummySite" in sites
-        # Check that DummySite is in the native downloaders (not yt-dlp)
-        native_sites = [s for s in sites if "yt-dlp" not in s]
+        # Check that DummySite is in the native downloaders (not yt-dlp/gallery-dl)
+        native_sites = _get_native_sites(sites)
         assert len(native_sites) == 1
     
     def test_register_multiple_downloaders(self):
@@ -79,7 +84,7 @@ class TestDownloaderFactoryRegistration:
         assert "DummySite" in sites
         assert "AnotherSite" in sites
         # Check native downloaders count
-        native_sites = [s for s in sites if "yt-dlp" not in s]
+        native_sites = _get_native_sites(sites)
         assert len(native_sites) == 2
     
     def test_register_same_downloader_twice(self):
@@ -89,7 +94,7 @@ class TestDownloaderFactoryRegistration:
         
         sites = DownloaderFactory.get_supported_sites()
         # Check native downloaders count (should be 1, not duplicated)
-        native_sites = [s for s in sites if "yt-dlp" not in s]
+        native_sites = _get_native_sites(sites)
         assert len(native_sites) == 1
     
     def test_register_as_decorator(self):
@@ -111,11 +116,11 @@ class TestDownloaderFactoryRegistration:
     def test_clear_registry(self):
         """Test clearing the registry."""
         DownloaderFactory.register(DummyDownloader)
-        native_sites_before = [s for s in DownloaderFactory.get_supported_sites() if "yt-dlp" not in s]
+        native_sites_before = _get_native_sites(DownloaderFactory.get_supported_sites())
         assert len(native_sites_before) == 1
         
         DownloaderFactory.clear_registry()
-        native_sites_after = [s for s in DownloaderFactory.get_supported_sites() if "yt-dlp" not in s]
+        native_sites_after = _get_native_sites(DownloaderFactory.get_supported_sites())
         assert len(native_sites_after) == 0
 
 
@@ -226,8 +231,8 @@ class TestDownloaderFactorySupportedSites:
         """Test getting supported sites with no registered downloaders."""
         sites = DownloaderFactory.get_supported_sites()
         assert isinstance(sites, list)
-        # Only yt-dlp should be present when no native downloaders registered
-        native_sites = [s for s in sites if "yt-dlp" not in s]
+        # Only yt-dlp and gallery-dl should be present when no native downloaders registered
+        native_sites = _get_native_sites(sites)
         assert len(native_sites) == 0
     
     def test_get_supported_sites_single(self):
@@ -236,7 +241,7 @@ class TestDownloaderFactorySupportedSites:
         
         sites = DownloaderFactory.get_supported_sites()
         assert "DummySite" in sites
-        native_sites = [s for s in sites if "yt-dlp" not in s]
+        native_sites = _get_native_sites(sites)
         assert len(native_sites) == 1
         assert native_sites[0] == "DummySite"
     
@@ -248,7 +253,7 @@ class TestDownloaderFactorySupportedSites:
         sites = DownloaderFactory.get_supported_sites()
         assert "DummySite" in sites
         assert "AnotherSite" in sites
-        native_sites = [s for s in sites if "yt-dlp" not in s]
+        native_sites = _get_native_sites(sites)
         assert len(native_sites) == 2
     
     def test_get_supported_sites_includes_ytdlp(self):
@@ -257,3 +262,10 @@ class TestDownloaderFactorySupportedSites:
         ytdlp_sites = [s for s in sites if "yt-dlp" in s]
         assert len(ytdlp_sites) == 1
         assert "Universal" in ytdlp_sites[0]
+    
+    def test_get_supported_sites_includes_gallerydl(self):
+        """Test that gallery-dl universal support is included."""
+        sites = DownloaderFactory.get_supported_sites()
+        gallery_sites = [s for s in sites if "gallery-dl" in s]
+        assert len(gallery_sites) == 1
+        assert "Gallery" in gallery_sites[0]

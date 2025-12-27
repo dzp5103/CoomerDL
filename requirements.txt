@@ -9,3 +9,4 @@ tkinterweb
 cloudscraper
 selenium
 yt-dlp
+gallery-dl
