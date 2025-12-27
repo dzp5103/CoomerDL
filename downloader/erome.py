@@ -4,6 +4,7 @@ import requests
 import os
 import time
 import datetime
+import threading
 
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, quote
@@ -27,7 +28,7 @@ class EromeDownloader:
         self.update_global_progress_callback = update_global_progress_callback
         self.download_images = download_images
         self.download_videos = download_videos
-        self.cancel_requested = False
+        self.cancel_event = threading.Event()  # Thread-safe cancellation event
         self.language = language
         self.executor = ThreadPoolExecutor(max_workers=max_workers)  # Thread pool for concurrent downloads
         self.total_files = 0
@@ -37,7 +38,7 @@ class EromeDownloader:
         self.tr = tr if tr else lambda x, **kwargs: x.format(**kwargs)  # Translation function
 
     def request_cancel(self):
-        self.cancel_requested = True
+        self.cancel_event.set()
         self.log(self.tr("Download cancelled"))
         if self.is_profile_download:
             self.enable_widgets_callback()
@@ -74,7 +75,7 @@ class EromeDownloader:
         return folder_name
 
     def download_file(self, url, file_path, resource_type, file_id=None, max_retries=999999):
-        if self.cancel_requested:
+        if self.cancel_event.is_set():
             return
 
         # Evita sobreescrituras y descargas duplicadas
@@ -105,7 +106,7 @@ class EromeDownloader:
 
                     with open(file_path, "wb") as f:
                         for chunk in response.iter_content(chunk_size=65536):
-                            if self.cancel_requested:
+                            if self.cancel_event.is_set():
                                 return
                             f.write(chunk)
                             downloaded_size += len(chunk)
@@ -179,7 +180,7 @@ class EromeDownloader:
 
     def process_album_page(self, page_url, base_folder, download_images=True, download_videos=True):
         try:
-            if self.cancel_requested:
+            if self.cancel_event.is_set():
                 return
             self.log(self.tr("Processing album URL: {page_url}", page_url=page_url))
             response = requests.get(page_url, headers=self.headers)
@@ -234,7 +235,7 @@ class EromeDownloader:
                 self.total_files += len(media_urls)
                 futures = [self.executor.submit(self.download_file, url, file_path, resource_type, str(uuid.uuid4())) for url, file_path, resource_type in media_urls]
                 for future in as_completed(futures):
-                    if self.cancel_requested:
+                    if self.cancel_event.is_set():
                         self.log(self.tr("Cancelling remaining downloads."))
                         break
                     future.result()
@@ -253,7 +254,7 @@ class EromeDownloader:
 
     def process_profile_page(self, url, download_folder, download_images, download_videos):
         try:
-            if self.cancel_requested:
+            if self.cancel_event.is_set():
                 return
             self.log(self.tr("Processing profile URL: {url}", url=url))
             response = requests.get(url, headers=self.headers)

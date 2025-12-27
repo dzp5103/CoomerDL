@@ -15,6 +15,7 @@ class Jpg5Downloader:
         self.update_global_progress_callback = update_global_progress_callback
         self.max_workers = max_workers
         self.progress_manager = progress_manager
+        self.session = requests.Session()  # Reuse session for better performance
 
     def log(self, message):
         if self.log_callback:
@@ -31,7 +32,7 @@ class Jpg5Downloader:
             os.makedirs(self.carpeta_destino)
 
         self.log(self.tr(f"Iniciando descarga desde: {self.url}"))
-        respuesta = requests.get(self.url)
+        respuesta = self.session.get(self.url)
         if self.cancel_requested.is_set():
             self.log(self.tr("Descarga cancelada por el usuario."))
             return
@@ -65,7 +66,7 @@ class Jpg5Downloader:
             media_url = enlace['href']
             self.log(self.tr(f"Procesando enlace: {media_url}"))
 
-            media_respuesta = requests.get(media_url)
+            media_respuesta = self.session.get(media_url)
             if self.cancel_requested.is_set():
                 self.log(self.tr("Descarga cancelada por el usuario."))
                 return
@@ -79,7 +80,7 @@ class Jpg5Downloader:
                     descarga_url = btn_descarga['href']
                     self.log(self.tr(f"Descargando desde: {descarga_url}"))
 
-                    img_respuesta = requests.get(descarga_url, stream=True)
+                    img_respuesta = self.session.get(descarga_url, stream=True)
                     if self.cancel_requested.is_set():
                         self.log(self.tr("Descarga cancelada por el usuario."))
                         return
@@ -90,7 +91,7 @@ class Jpg5Downloader:
                     downloaded_size = 0
 
                     with open(img_path, 'wb') as f:
-                        for chunk in img_respuesta.iter_content(chunk_size=1024):
+                        for chunk in img_respuesta.iter_content(chunk_size=65536):  # 64KB chunks for better performance
                             if self.cancel_requested.is_set():
                                 self.log(self.tr("Descarga cancelada por el usuario."))
                                 return

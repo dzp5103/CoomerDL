@@ -2,6 +2,7 @@ import os
 import json
 import re
 import queue
+import threading
 from pathlib import Path
 from bs4 import BeautifulSoup
 from urllib.parse import urlparse
@@ -17,7 +18,7 @@ class SimpCity:
         self.enable_widgets_callback = enable_widgets_callback
         self.update_progress_callback = update_progress_callback
         self.update_global_progress_callback = update_global_progress_callback
-        self.cancel_requested = False
+        self.cancel_event = threading.Event()  # Thread-safe cancellation event
         self.total_files = 0
         self.completed_files = 0
         self.download_queue = queue.Queue()
@@ -40,6 +41,11 @@ class SimpCity:
     def log(self, message):
         if self.log_callback:
             self.log_callback(message)
+
+    def request_cancel(self):
+        self.cancel_event.set()
+        msg = "Download cancellation requested."
+        self.log(self.tr(msg) if self.tr else msg)
 
     def sanitize_folder_name(self, name):
         return re.sub(r'[<>:"/\\|?*]', '_', name)
@@ -69,20 +75,28 @@ class SimpCity:
             return None
 
     def save_file(self, file_url, path):
+        if self.cancel_event.is_set():
+            return
         os.makedirs(os.path.dirname(path), exist_ok=True)
         response = self.scraper.get(file_url, stream=True)
         if response.status_code == 200:
             with open(path, 'wb') as file:
                 for chunk in response.iter_content(1024):
+                    if self.cancel_event.is_set():
+                        return
                     file.write(chunk)
             self.log(self.tr(f"Archivo descargado: {path}"))
         else:
             self.log(self.tr(f"Error al descargar {file_url}: {response.status_code}"))
 
     def process_post(self, post_content, download_folder):
+        if self.cancel_event.is_set():
+            return
         # Procesar imágenes
         images = post_content.select(self.images_selector)
         for img in images:
+            if self.cancel_event.is_set():
+                return
             src = img.get('src')
             if src:
                 file_name = os.path.basename(urlparse(src).path)
@@ -92,6 +106,8 @@ class SimpCity:
         # Procesar videos
         videos = post_content.select(self.videos_selector)
         for video in videos:
+            if self.cancel_event.is_set():
+                return
             src = video.get('src')
             if src:
                 file_name = os.path.basename(urlparse(src).path)
@@ -103,6 +119,8 @@ class SimpCity:
         if attachments_block:
             attachments = attachments_block.select(self.attachments_selector)
             for attachment in attachments:
+                if self.cancel_event.is_set():
+                    return
                 href = attachment.get('href')
                 if href:
                     file_name = os.path.basename(urlparse(href).path)
@@ -110,6 +128,8 @@ class SimpCity:
                     self.save_file(href, file_path)
 
     def process_page(self, url):
+        if self.cancel_event.is_set():
+            return
         soup = self.fetch_page(url)
         if not soup:
             return
@@ -121,12 +141,14 @@ class SimpCity:
 
         message_inners = soup.select(self.posts_selector)
         for post in message_inners:
+            if self.cancel_event.is_set():
+                return
             post_content = post.select_one(self.post_content_selector)
             if post_content:
                 self.process_post(post_content, download_folder)
 
         next_page = soup.select_one(self.next_page_selector)
-        if next_page:
+        if next_page and not self.cancel_event.is_set():
             next_page_url = next_page.get('href')
             if next_page_url:
                 self.process_page(self.base_url + next_page_url)

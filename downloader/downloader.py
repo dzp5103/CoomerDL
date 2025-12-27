@@ -80,6 +80,10 @@ class Downloader:
 		self.subdomain_locks = defaultdict(threading.Lock)
 		self.stream_read_timeout = stream_read_timeout 
 
+		# Progress throttling
+		self.progress_throttle_interval = 0.1  # Update at most every 0.1 seconds
+		self.last_progress_update = defaultdict(float)  # Track last update time per file_id 
+
 		
 		db_folder = os.path.join("resources", "config")
 		os.makedirs(db_folder, exist_ok=True)  
@@ -116,10 +120,18 @@ class Downloader:
 		self.db_connection.commit()
 
 	def load_download_cache(self):
+		# Legacy method kept for backward compatibility but no longer preloads entire DB
+		# Database lookups are now done on-demand using is_url_downloaded()
+		self.download_cache = {}  # Keep as empty dict for backward compatibility
+
+	def is_url_downloaded(self, media_url):
+		"""Check if a URL has been downloaded using an indexed DB query instead of cache"""
 		with self.db_lock:
-			self.db_cursor.execute("SELECT media_url, file_path, file_size FROM downloads")
-			rows = self.db_cursor.fetchall()
-		self.download_cache = {row[0]: (row[1], row[2]) for row in rows}
+			self.db_cursor.execute(
+				"SELECT 1 FROM downloads WHERE media_url = ? LIMIT 1",
+				(media_url,)
+			)
+			return self.db_cursor.fetchone() is not None
 
 
 	def log(self, message):
@@ -165,10 +177,12 @@ class Downloader:
 					self.db_connection.close()
 					self.db_connection = None
 				except Exception as e:
-					self.log(self.tr("Error closing database: {error}").format(error=e))
+					error_msg = "Error closing database: {error}".format(error=e)
+					self.log(self.tr(error_msg) if self.tr else error_msg)
 			if self.enable_widgets_callback:
 				self.enable_widgets_callback()
-			self.log(self.tr("All downloads completed or cancelled."))
+			completion_msg = "All downloads completed or cancelled."
+			self.log(self.tr(completion_msg) if self.tr else completion_msg)
 
 	def safe_request(self, url, max_retries=None, headers=None):
 		if max_retries is None:
@@ -470,7 +484,8 @@ class Downloader:
 		tmp_path = final_path + ".tmp"
 
 		
-		if media_url in self.download_cache:
+		# Check if already downloaded using indexed DB query instead of full cache
+		if self.is_url_downloaded(media_url):
 			self.log(f"File from {media_url} is in DB, skipping.")
 			with self.file_lock:
 				self.skipped_files.append(final_path)
@@ -513,15 +528,21 @@ class Downloader:
 						if chunk:
 							f.write(chunk)
 							downloaded_size += len(chunk)
+							
+							# Throttle progress updates - only update if enough time has passed
+							current_time = time.time()
 							if self.update_progress_callback:
-								elapsed_time = time.time() - self.start_time
-								speed = downloaded_size / elapsed_time if elapsed_time > 0 else 0
-								remaining_time = (total_size - downloaded_size) / speed if speed > 0 else 0
-								self.update_progress_callback(downloaded_size, total_size,
-															file_id=download_id,
-															file_path=tmp_path,
-															speed=speed,
-															eta=remaining_time)
+								if download_id not in self.last_progress_update or \
+								   (current_time - self.last_progress_update[download_id]) >= self.progress_throttle_interval:
+									elapsed_time = current_time - self.start_time
+									speed = downloaded_size / elapsed_time if elapsed_time > 0 else 0
+									remaining_time = (total_size - downloaded_size) / speed if speed > 0 else 0
+									self.update_progress_callback(downloaded_size, total_size,
+																file_id=download_id,
+																file_path=tmp_path,
+																speed=speed,
+																eta=remaining_time)
+									self.last_progress_update[download_id] = current_time
 
 				
 				while total_size and downloaded_size < total_size:
@@ -542,15 +563,21 @@ class Downloader:
 							if chunk:
 								f.write(chunk)
 								downloaded_size += len(chunk)
+								
+								# Throttle progress updates - only update if enough time has passed
+								current_time = time.time()
 								if self.update_progress_callback:
-									elapsed_time = time.time() - self.start_time
-									speed = downloaded_size / elapsed_time if elapsed_time > 0 else 0
-									remaining_time = (total_size - downloaded_size) / speed if speed > 0 else 0
-									self.update_progress_callback(downloaded_size, total_size,
-																file_id=download_id,
-																file_path=tmp_path,
-																speed=speed,
-																eta=remaining_time)
+									if download_id not in self.last_progress_update or \
+									   (current_time - self.last_progress_update[download_id]) >= self.progress_throttle_interval:
+										elapsed_time = current_time - self.start_time
+										speed = downloaded_size / elapsed_time if elapsed_time > 0 else 0
+										remaining_time = (total_size - downloaded_size) / speed if speed > 0 else 0
+										self.update_progress_callback(downloaded_size, total_size,
+																	file_id=download_id,
+																	file_path=tmp_path,
+																	speed=speed,
+																	eta=remaining_time)
+										self.last_progress_update[download_id] = current_time
 
 				
 				if total_size > 0 and downloaded_size != total_size:
@@ -562,6 +589,19 @@ class Downloader:
 						os.remove(final_path)
 					os.rename(tmp_path, final_path)
 
+				# Send final 100% progress update
+				if self.update_progress_callback and download_id:
+					elapsed_time = time.time() - self.start_time
+					final_speed = downloaded_size / elapsed_time if elapsed_time > 0 else 0
+					self.update_progress_callback(downloaded_size, total_size,
+												file_id=download_id,
+												file_path=final_path,
+												speed=final_speed,
+												eta=0)
+					# Clean up throttle tracking
+					if download_id in self.last_progress_update:
+						del self.last_progress_update[download_id]
+				
 				
 				with self.file_lock:
 					self.completed_files += 1
