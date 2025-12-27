@@ -2,7 +2,7 @@
 Unit tests for DownloaderFactory.
 """
 import pytest
-from downloader.base import BaseDownloader, DownloadResult, DownloadOptions
+from downloader.base import BaseDownloader, DownloadResult
 from downloader.factory import DownloaderFactory
 
 

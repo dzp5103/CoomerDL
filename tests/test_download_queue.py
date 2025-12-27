@@ -3,8 +3,6 @@ Unit tests for DownloadQueue.
 """
 import pytest
 import json
-from pathlib import Path
-from unittest.mock import Mock, patch, mock_open
 from app.models.download_queue import (
     DownloadQueue,
     QueueItem,
@@ -135,7 +133,7 @@ class TestDownloadQueueOrdering:
     def test_get_next_pending(self, queue):
         """Test getting next pending item."""
         high = queue.add("https://example.com/high", "/downloads", priority=QueuePriority.HIGH)
-        normal = queue.add("https://example.com/normal", "/downloads", priority=QueuePriority.NORMAL)
+        queue.add("https://example.com/normal", "/downloads", priority=QueuePriority.NORMAL)
         
         next_item = queue.get_next_pending()
         
@@ -179,7 +177,7 @@ class TestDownloadQueueOrdering:
     def test_move_up_first_item(self, queue):
         """Test that moving up first item returns False."""
         item1 = queue.add("https://example.com/1", "/downloads")
-        item2 = queue.add("https://example.com/2", "/downloads")
+        queue.add("https://example.com/2", "/downloads")
         
         result = queue.move_up(item1.id)
         assert result is False
@@ -200,7 +198,7 @@ class TestDownloadQueueOrdering:
     
     def test_move_down_last_item(self, queue):
         """Test that moving down last item returns False."""
-        item1 = queue.add("https://example.com/1", "/downloads")
+        queue.add("https://example.com/1", "/downloads")
         item2 = queue.add("https://example.com/2", "/downloads")
         
         result = queue.move_down(item2.id)
@@ -388,7 +386,7 @@ class TestDownloadQueueUtilities:
         item1 = queue.add("https://example.com/1", "/downloads")
         item2 = queue.add("https://example.com/2", "/downloads")
         item3 = queue.add("https://example.com/3", "/downloads")
-        item4 = queue.add("https://example.com/4", "/downloads")
+        queue.add("https://example.com/4", "/downloads")
         
         queue.update_status(item1.id, QueueItemStatus.DOWNLOADING)
         queue.update_status(item2.id, QueueItemStatus.COMPLETED)

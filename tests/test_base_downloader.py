@@ -1,7 +1,6 @@
 """
 Unit tests for BaseDownloader class.
 """
-import pytest
 from downloader.base import BaseDownloader, DownloadOptions, DownloadResult
 
 

@@ -2,7 +2,6 @@
 Pytest configuration and shared fixtures.
 """
 import pytest
-from pathlib import Path
 from downloader.base import DownloadOptions
 
 
