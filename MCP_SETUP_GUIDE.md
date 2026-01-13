@@ -131,15 +131,46 @@ MCP servers are automatically configured via `.mcp/config.json` in the repositor
 
 ## Environment Variables
 
-Some MCP servers require environment variables to function. Set these in your shell or system environment:
+Some MCP servers require environment variables to function. The configuration method differs for GitHub Copilot vs local development:
 
-### Required for Full Functionality
+### For GitHub Copilot (Repository Secrets)
 
-#### GITHUB_TOKEN
+GitHub Copilot requires secrets to be added via **Settings → Secrets and variables → Actions** with the `COPILOT_MCP_` prefix:
+
+**Required:**
+- `COPILOT_MCP_GITHUB_TOKEN` - GitHub personal access token for repository operations
+
+**Optional:**
+- `COPILOT_MCP_BRAVE_API_KEY` - Brave Search API key for web search
+- `COPILOT_MCP_POSTGRES_CONNECTION_STRING` - PostgreSQL connection string (future use)
+
+**Adding Repository Secrets:**
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Secrets and variables** → **Actions**
+3. Click **New repository secret**
+4. Add each secret:
+   - Name: `COPILOT_MCP_GITHUB_TOKEN`
+   - Value: Your GitHub token (see below for creating one)
+5. Click **Add secret**
+
+### For Local Development (Shell Environment Variables)
+
+For local MCP tools, use standard environment variable names without the prefix:
+
+**Required:**
+- `GITHUB_TOKEN` - GitHub personal access token
+- `PROJECT_PATH` - Set automatically to current directory by configs
+
+**Optional:**
+- `BRAVE_API_KEY` - Brave Search API key
+- `POSTGRES_CONNECTION_STRING` - PostgreSQL connection string
+
+### Creating a GitHub Token
 
 Required for the GitHub MCP server to access repository data, PRs, issues, and workflows.
 
-**Creating a GitHub Token:**
+**Steps:**
 
 1. Go to https://github.com/settings/tokens
 2. Click **Generate new token** → **Generate new token (classic)**
@@ -151,7 +182,7 @@ Required for the GitHub MCP server to access repository data, PRs, issues, and w
 5. Click **Generate token**
 6. Copy the token (you won't see it again!)
 
-**Setting the token:**
+**Setting for Local Development:**
 
 Unix/macOS (Bash/Zsh):
 ```bash
@@ -178,9 +209,11 @@ Windows (System Environment Variables):
 6. Variable value: `ghp_your_token_here`
 7. Click **OK**
 
-### Optional Environment Variables
+**Setting for GitHub Copilot:**
 
-#### BRAVE_API_KEY
+Add the token as a repository secret named `COPILOT_MCP_GITHUB_TOKEN` (see "Adding Repository Secrets" above).
+
+### Optional: Brave Search API Key
 
 Enables web search for finding documentation and troubleshooting.
 
@@ -191,12 +224,16 @@ Enables web search for finding documentation and troubleshooting.
 3. Create an API key
 4. Copy the key
 
-**Setting the key:**
+**Setting for Local Development:**
 ```bash
 export BRAVE_API_KEY="your_brave_key_here"
 ```
 
-#### POSTGRES_CONNECTION_STRING
+**Setting for GitHub Copilot:**
+
+Add as repository secret named `COPILOT_MCP_BRAVE_API_KEY`.
+
+### Optional: PostgreSQL Connection String
 
 For future PostgreSQL migration (currently optional).
 
@@ -204,6 +241,10 @@ For future PostgreSQL migration (currently optional).
 ```bash
 export POSTGRES_CONNECTION_STRING="postgresql://user:password@host:port/database"
 ```
+
+**Setting for GitHub Copilot:**
+
+Add as repository secret named `COPILOT_MCP_POSTGRES_CONNECTION_STRING`.
 
 ## Verification
 

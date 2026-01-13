@@ -2,6 +2,12 @@
 
 This directory contains comprehensive MCP (Model Context Protocol) server configurations for enhancing AI agent capabilities when working on CoomerDL. All 14+ MCP servers are fully configured and ready to use.
 
+**Important:** The configuration includes GitHub Copilot-specific schema requirements:
+- Each server has `"type": "stdio"` field
+- Each server has a `"tools"` array listing available tools
+- Environment variables use `COPILOT_MCP_` prefix for repository secrets
+- Paths use relative references (`.`) for portability
+
 ## What is MCP?
 
 MCP is a protocol that allows AI agents to access external tools, data sources, and services through standardized server interfaces. This enables agents to:
@@ -59,8 +65,10 @@ cd CoomerDL
 ```json
 {
   "filesystem": {
+    "type": "stdio",
     "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/CoomerDL"]
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+    "tools": ["read_file", "read_multiple_files", "write_file", "edit_file", "create_directory", "list_directory", "move_file", "search_files", "get_file_info", "list_allowed_directories"]
   }
 }
 ```
@@ -86,8 +94,10 @@ cd CoomerDL
 ```json
 {
   "sqlite": {
+    "type": "stdio",
     "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "resources/config/downloads.db"]
+    "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "resources/config/downloads.db"],
+    "tools": ["read_query", "write_query", "create_table", "list_tables", "describe_table", "append_insight"]
   }
 }
 ```
@@ -113,16 +123,18 @@ cd CoomerDL
 ```json
 {
   "github": {
+    "type": "stdio",
     "command": "npx",
     "args": ["-y", "@github/mcp-server"],
     "env": {
-      "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-    }
+      "GITHUB_TOKEN": "${COPILOT_MCP_GITHUB_TOKEN}"
+    },
+    "tools": ["get_file_contents", "get_issue", "get_pull_request", "list_issues", "list_pull_requests", "search_code", "search_issues", "search_repositories", "create_issue", "create_pull_request", "update_issue", "create_or_update_file", "push_files", "create_branch", "list_commits", "list_branches"]
   }
 }
 ```
 
-**Required**: Set `GITHUB_TOKEN` environment variable
+**Required**: Set `COPILOT_MCP_GITHUB_TOKEN` repository secret (for GitHub Copilot) or `GITHUB_TOKEN` environment variable (for local development)
 
 ### Priority 2: Development Tooling
 
@@ -492,20 +504,40 @@ The configuration will be automatically available to all GitHub Copilot sessions
 
 ## Environment Variables
 
-Set these environment variables for full functionality:
+Environment variables are configured differently for GitHub Copilot vs local development.
 
-### Required
-- `GITHUB_TOKEN`: Personal access token for GitHub API access
+### For GitHub Copilot (Repository Secrets)
+
+Add secrets via **Settings → Secrets and variables → Actions** with the `COPILOT_MCP_` prefix:
+
+**Required:**
+- `COPILOT_MCP_GITHUB_TOKEN`: Personal access token for GitHub API access
   - Scopes needed: `repo`, `read:org`, `workflow`
   - Create at: https://github.com/settings/tokens
 
-### Optional
-- `BRAVE_API_KEY`: API key for Brave Search
+**Optional:**
+- `COPILOT_MCP_BRAVE_API_KEY`: API key for Brave Search
   - Get it at: https://brave.com/search/api/
-- `POSTGRES_CONNECTION_STRING`: PostgreSQL connection string
+- `COPILOT_MCP_POSTGRES_CONNECTION_STRING`: PostgreSQL connection string
   - Format: `postgresql://user:password@host:port/database`
 
-### Setting Environment Variables
+**Adding Repository Secrets:**
+1. Navigate to repository **Settings** → **Secrets and variables** → **Actions**
+2. Click **New repository secret**
+3. Add name (e.g., `COPILOT_MCP_GITHUB_TOKEN`) and value
+4. Click **Add secret**
+
+### For Local Development (Shell Environment Variables)
+
+Use standard variable names without the `COPILOT_MCP_` prefix:
+
+**Required:**
+- `GITHUB_TOKEN`: Personal access token for GitHub API access
+- `PROJECT_PATH`: Automatically set to current directory by configs
+
+**Optional:**
+- `BRAVE_API_KEY`: API key for Brave Search
+- `POSTGRES_CONNECTION_STRING`: PostgreSQL connection string
 
 #### Unix/macOS (Bash)
 ```bash
