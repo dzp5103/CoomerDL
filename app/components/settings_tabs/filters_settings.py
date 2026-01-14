@@ -209,13 +209,36 @@ class FiltersSettingsTab:
         )
         info_label.grid(row=4, column=0, sticky="w", padx=20, pady=(0, 20))
     
+    def _validate_date(self, date_str: str) -> str:
+        """
+        Validate and return date string in ISO format.
+        
+        Args:
+            date_str: Date string to validate
+            
+        Returns:
+            Valid ISO date string or empty string
+        """
+        if not date_str:
+            return ''
+        
+        try:
+            from datetime import datetime
+            # Try to parse the date
+            dt = datetime.fromisoformat(date_str)
+            # Return in ISO format
+            return dt.strftime('%Y-%m-%d')
+        except (ValueError, AttributeError):
+            # Invalid date, return empty string
+            return ''
+    
     def get_settings(self):
-        """Get the current settings values."""
+        """Get the current settings values with date validation."""
         return {
             'min_file_size_mb': self.min_size_var.get(),
             'max_file_size_mb': self.max_size_var.get(),
-            'date_from': self.date_from_var.get().strip(),
-            'date_to': self.date_to_var.get().strip(),
+            'date_from': self._validate_date(self.date_from_var.get().strip()),
+            'date_to': self._validate_date(self.date_to_var.get().strip()),
             'exclude_webm': self.exclude_webm_var.get(),
             'exclude_gif': self.exclude_gif_var.get(),
             'exclude_webp': self.exclude_webp_var.get(),

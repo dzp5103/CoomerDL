@@ -314,24 +314,25 @@ class BaseDownloader(ABC):
         Returns:
             Tuple of (should_skip: bool, reason: str)
         """
-        # Check extension blacklist if provided
-        if hasattr(self.options, 'excluded_extensions') and self.options.excluded_extensions:
-            if filename:
-                ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-                if ext in self.options.excluded_extensions:
-                    return True, f"Extension {ext} is blacklisted"
+        # Check extension blacklist
+        if self.options.excluded_extensions and filename:
+            ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            if ext in self.options.excluded_extensions:
+                return True, f"Extension {ext} is blacklisted"
         
-        # Check date range if provided
+        # Check date range if provided (check for non-empty strings)
         if post_date and (self.options.date_from or self.options.date_to):
             try:
                 from datetime import datetime
                 post_dt = datetime.fromisoformat(post_date)
                 
+                # Only check date_from if it's a non-empty string
                 if self.options.date_from:
                     date_from = datetime.fromisoformat(self.options.date_from)
                     if post_dt < date_from:
                         return True, f"Post date {post_date} is before {self.options.date_from}"
                 
+                # Only check date_to if it's a non-empty string
                 if self.options.date_to:
                     date_to = datetime.fromisoformat(self.options.date_to)
                     if post_dt > date_to:

@@ -284,7 +284,7 @@ class ImageDownloaderApp(ctk.CTk):
             max_retries=network_settings.get('max_retries', 3),
             retry_interval=float(network_settings.get('base_delay', 2.0)),
             chunk_size=1048576,  # 1MB
-            timeout=network_settings.get('connection_timeout', 30),
+            # Note: 'timeout' is deprecated, use connection_timeout and read_timeout
             min_file_size=int(filter_settings.get('min_file_size_mb', 0)) * 1024 * 1024,
             max_file_size=int(filter_settings.get('max_file_size_mb', 0)) * 1024 * 1024,
             date_from=filter_settings.get('date_from', '') or None,
