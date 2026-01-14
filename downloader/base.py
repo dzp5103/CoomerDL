@@ -37,10 +37,13 @@ class DownloadOptions:
     date_from: Optional[str] = None  # ISO format YYYY-MM-DD
     date_to: Optional[str] = None  # ISO format YYYY-MM-DD
     excluded_extensions: set = field(default_factory=set)  # Set of extensions to skip, e.g. {'.webm', '.gif'}
-    # Proxy configuration
+    # Network configuration
     proxy_type: str = 'none'  # 'none', 'system', or 'custom'
     proxy_url: str = ''  # Proxy URL for custom proxy (e.g., 'http://proxy.example.com:8080')
     user_agent: Optional[str] = None  # Custom user agent string
+    bandwidth_limit_kbps: int = 0  # KB/s, 0 = unlimited
+    connection_timeout: int = 30  # seconds
+    read_timeout: int = 60  # seconds
 
 
 @dataclass
@@ -311,24 +314,25 @@ class BaseDownloader(ABC):
         Returns:
             Tuple of (should_skip: bool, reason: str)
         """
-        # Check extension blacklist if provided
-        if hasattr(self.options, 'excluded_extensions') and self.options.excluded_extensions:
-            if filename:
-                ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-                if ext in self.options.excluded_extensions:
-                    return True, f"Extension {ext} is blacklisted"
+        # Check extension blacklist
+        if self.options.excluded_extensions and filename:
+            ext = '.' + filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            if ext in self.options.excluded_extensions:
+                return True, f"Extension {ext} is blacklisted"
         
-        # Check date range if provided
+        # Check date range if provided (check for non-empty strings)
         if post_date and (self.options.date_from or self.options.date_to):
             try:
                 from datetime import datetime
                 post_dt = datetime.fromisoformat(post_date)
                 
+                # Only check date_from if it's a non-empty string
                 if self.options.date_from:
                     date_from = datetime.fromisoformat(self.options.date_from)
                     if post_dt < date_from:
                         return True, f"Post date {post_date} is before {self.options.date_from}"
                 
+                # Only check date_to if it's a non-empty string
                 if self.options.date_to:
                     date_to = datetime.fromisoformat(self.options.date_to)
                     if post_dt > date_to:
@@ -570,7 +574,7 @@ class BaseDownloader(ABC):
     
     def download_file(self, url: str, filepath: str, chunk_size: int = None) -> bool:
         """
-        Download a file from URL to filepath.
+        Download a file from URL to filepath with bandwidth throttling.
         
         Args:
             url: The file URL
@@ -585,8 +589,14 @@ class BaseDownloader(ABC):
         
         try:
             import os
+            from downloader.throttle import BandwidthThrottle
             
             chunk_size = chunk_size or self.options.chunk_size
+            
+            # Initialize bandwidth throttle if limit is set
+            throttle = None
+            if self.options.bandwidth_limit_kbps > 0:
+                throttle = BandwidthThrottle(self.options.bandwidth_limit_kbps * 1024)
             
             response = self.safe_request(url, stream=True)
             if not response:
@@ -595,7 +605,7 @@ class BaseDownloader(ABC):
             # Create directory if needed
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
             
-            # Download file in chunks
+            # Download file in chunks with throttling
             with open(filepath, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if self.is_cancelled():
@@ -609,6 +619,9 @@ class BaseDownloader(ABC):
                     
                     if chunk:
                         f.write(chunk)
+                        # Apply bandwidth throttle if configured
+                        if throttle:
+                            throttle.throttle(len(chunk))
             
             return True
             
