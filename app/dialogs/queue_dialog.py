@@ -13,11 +13,13 @@ class QueueDialog(ctk.CTkToplevel):
         self,
         parent,
         queue: DownloadQueue,
-        tr: Optional[Callable[[str], str]] = None
+        tr: Optional[Callable[[str], str]] = None,
+        on_process_queue: Optional[Callable[[], None]] = None
     ):
         super().__init__(parent)
         self.queue = queue
         self.tr = tr or (lambda x: x)
+        self.on_process_queue = on_process_queue
         self.selected_item_id = None
         
         # Setup window
@@ -118,6 +120,17 @@ class QueueDialog(ctk.CTkToplevel):
         # Right side buttons
         right_buttons = ctk.CTkFrame(controls_frame, fg_color="transparent")
         right_buttons.pack(side="right")
+        
+        # Process Queue button (if callback provided)
+        if self.on_process_queue:
+            self.btn_process = ctk.CTkButton(
+                right_buttons,
+                text="▶ " + self.tr("Process Queue"),
+                command=self.on_process_queue,
+                width=130,
+                fg_color="green"
+            )
+            self.btn_process.pack(side="left", padx=2)
         
         self.btn_clear = ctk.CTkButton(
             right_buttons,

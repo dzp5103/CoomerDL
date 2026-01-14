@@ -102,7 +102,7 @@ class MenuBar(ctk.CTkFrame):
         
         # Queue button (NEW)
         if self.on_queue:
-            queue_button = ctk.CTkButton(
+            self.queue_button = ctk.CTkButton(
                 self,
                 text="📋 " + self.tr("Queue"),
                 width=80,
@@ -110,8 +110,10 @@ class MenuBar(ctk.CTkFrame):
                 hover_color="gray25",
                 command=self.on_queue
             )
-            queue_button.pack(side="left", padx=2)
-            queue_button.bind("<Button-1>", lambda e: "break")
+            self.queue_button.pack(side="left", padx=2)
+            self.queue_button.bind("<Button-1>", lambda e: "break")
+        else:
+            self.queue_button = None
         
         # Right side icons
         self._create_social_icons()
@@ -206,3 +208,11 @@ class MenuBar(ctk.CTkFrame):
         for widget in self.winfo_children():
             widget.destroy()
         self.create_widgets()
+    
+    def update_queue_badge(self, count: int):
+        """Update the queue button to show pending item count."""
+        if self.queue_button:
+            if count > 0:
+                self.queue_button.configure(text=f"📋 {self.tr('Queue')} ({count})")
+            else:
+                self.queue_button.configure(text="📋 " + self.tr("Queue"))

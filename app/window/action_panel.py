@@ -20,6 +20,7 @@ class ActionPanel(ctk.CTkFrame):
         tr: Callable[[str], str],
         on_download: Optional[Callable[[], None]] = None,
         on_cancel: Optional[Callable[[], None]] = None,
+        on_add_to_queue: Optional[Callable[[], None]] = None,
         autoscroll_var: Optional[tk.BooleanVar] = None,
     ):
         """
@@ -30,6 +31,7 @@ class ActionPanel(ctk.CTkFrame):
             tr: Translation function
             on_download: Callback for download button
             on_cancel: Callback for cancel button
+            on_add_to_queue: Callback for add to queue button
             autoscroll_var: Variable for autoscroll checkbox
         """
         super().__init__(parent)
@@ -37,6 +39,7 @@ class ActionPanel(ctk.CTkFrame):
         self.tr = tr
         self.on_download = on_download
         self.on_cancel = on_cancel
+        self.on_add_to_queue = on_add_to_queue
         self.autoscroll_var = autoscroll_var
         
         self.create_widgets()
@@ -50,6 +53,16 @@ class ActionPanel(ctk.CTkFrame):
             command=self.on_download
         )
         self.download_button.pack(side='left', padx=10)
+        
+        # Add to Queue button
+        if self.on_add_to_queue:
+            self.add_to_queue_button = ctk.CTkButton(
+                self,
+                text="➕ " + self.tr("Add to Queue"),
+                command=self.on_add_to_queue,
+                fg_color="#1f538d"
+            )
+            self.add_to_queue_button.pack(side='left', padx=10)
         
         # Cancel button
         self.cancel_button = ctk.CTkButton(
@@ -98,6 +111,8 @@ class ActionPanel(ctk.CTkFrame):
     def update_texts(self):
         """Update UI texts for translation changes."""
         self.download_button.configure(text=self.tr("Descargar"))
+        if hasattr(self, 'add_to_queue_button'):
+            self.add_to_queue_button.configure(text="➕ " + self.tr("Add to Queue"))
         self.cancel_button.configure(text=self.tr("Cancelar Descarga"))
         if hasattr(self, 'autoscroll_logs_checkbox'):
             self.autoscroll_logs_checkbox.configure(text=self.tr("Auto-scroll logs"))
