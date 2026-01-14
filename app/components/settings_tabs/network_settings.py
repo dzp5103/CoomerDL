@@ -33,6 +33,9 @@ class NetworkSettingsTab:
                 'proxy_type': 'none',
                 'proxy_url': '',
                 'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'bandwidth_limit_kbps': 0,
+                'connection_timeout': 30,
+                'read_timeout': 60,
             }
         
         self.render()
@@ -230,9 +233,69 @@ class NetworkSettingsTab:
             placeholder_text="http://proxy.example.com:8080"
         ).grid(row=0, column=1, sticky="ew", padx=(5, 0))
         
+        # Bandwidth and timeout section
+        bw_frame = ctk.CTkFrame(self.parent)
+        bw_frame.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 10))
+        bw_frame.grid_columnconfigure(1, weight=1)
+        
+        ctk.CTkLabel(
+            bw_frame,
+            text=self.translate("Bandwidth & Timeouts:"),
+            font=("Helvetica", 12, "bold"),
+            anchor="w"
+        ).grid(row=0, column=0, columnspan=2, sticky="w", padx=15, pady=(15, 10))
+        
+        # Bandwidth limit
+        ctk.CTkLabel(
+            bw_frame,
+            text=self.translate("Bandwidth limit (KB/s, 0=unlimited):"),
+            anchor="w"
+        ).grid(row=1, column=0, sticky="w", padx=15, pady=5)
+        
+        self.bandwidth_var = ctk.IntVar(
+            value=self.settings['network'].get('bandwidth_limit_kbps', 0)
+        )
+        ctk.CTkEntry(
+            bw_frame,
+            textvariable=self.bandwidth_var,
+            width=80
+        ).grid(row=1, column=1, sticky="w", padx=15, pady=5)
+        
+        # Connection timeout
+        ctk.CTkLabel(
+            bw_frame,
+            text=self.translate("Connection timeout (seconds):"),
+            anchor="w"
+        ).grid(row=2, column=0, sticky="w", padx=15, pady=5)
+        
+        self.conn_timeout_var = ctk.IntVar(
+            value=self.settings['network'].get('connection_timeout', 30)
+        )
+        ctk.CTkEntry(
+            bw_frame,
+            textvariable=self.conn_timeout_var,
+            width=80
+        ).grid(row=2, column=1, sticky="w", padx=15, pady=5)
+        
+        # Read timeout
+        ctk.CTkLabel(
+            bw_frame,
+            text=self.translate("Read timeout (seconds):"),
+            anchor="w"
+        ).grid(row=3, column=0, sticky="w", padx=15, pady=(5, 15))
+        
+        self.read_timeout_var = ctk.IntVar(
+            value=self.settings['network'].get('read_timeout', 60)
+        )
+        ctk.CTkEntry(
+            bw_frame,
+            textvariable=self.read_timeout_var,
+            width=80
+        ).grid(row=3, column=1, sticky="w", padx=15, pady=(5, 15))
+        
         # User agent section
         ua_frame = ctk.CTkFrame(self.parent)
-        ua_frame.grid(row=4, column=0, sticky="ew", padx=20, pady=(0, 10))
+        ua_frame.grid(row=5, column=0, sticky="ew", padx=20, pady=(0, 10))
         ua_frame.grid_columnconfigure(0, weight=1)
         
         ctk.CTkLabel(
@@ -291,4 +354,7 @@ class NetworkSettingsTab:
             'proxy_type': self.proxy_type_var.get(),
             'proxy_url': self.proxy_url_var.get(),
             'user_agent': self.user_agent_var.get(),
+            'bandwidth_limit_kbps': self.bandwidth_var.get(),
+            'connection_timeout': self.conn_timeout_var.get(),
+            'read_timeout': self.read_timeout_var.get(),
         }
