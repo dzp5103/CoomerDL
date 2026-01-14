@@ -1,6 +1,11 @@
 # Use Python 3.10 slim as base
 FROM python:3.10-slim
 
+# Build arguments for security
+ARG VNC_PASSWORD_ARG=coomerdl
+ARG USER_ID=1000
+ARG GROUP_ID=1000
+
 # Prevent Python from writing pyc files and buffering stdout
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
@@ -43,22 +48,28 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code
 COPY . .
 
-# Set environment variables for Display
-ENV DISPLAY=:0
-ENV RESOLUTION=1280x800x24
-ENV VNC_PASSWORD=coomerdl
+# Set environment variables for Display and Cloud Run
+ENV DISPLAY=:0 \
+    RESOLUTION=1280x800x24 \
+    PORT=8080 \
+    VNC_PASSWORD=${VNC_PASSWORD_ARG}
 
 # Expose ports
-# 8080: Main entry (noVNC or HTTP placeholder)
+# PORT: Dynamic port for Cloud Run (defaults to 8080)
 # 5900: VNC server (direct)
-EXPOSE 8080 5900
+EXPOSE ${PORT} 5900
 
 # Copy configuration files
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /app/entrypoint.sh
 
-# Make entrypoint executable
-RUN chmod +x /app/entrypoint.sh
+# Make entrypoint executable and create necessary directories
+RUN chmod +x /app/entrypoint.sh && \
+    mkdir -p /var/log/supervisor
+
+# Health check to ensure services are running
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/vnc.html || exit 1
 
 # Define entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
