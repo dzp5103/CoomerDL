@@ -37,10 +37,13 @@ class DownloadOptions:
     date_from: Optional[str] = None  # ISO format YYYY-MM-DD
     date_to: Optional[str] = None  # ISO format YYYY-MM-DD
     excluded_extensions: set = field(default_factory=set)  # Set of extensions to skip, e.g. {'.webm', '.gif'}
-    # Proxy configuration
+    # Network configuration
     proxy_type: str = 'none'  # 'none', 'system', or 'custom'
     proxy_url: str = ''  # Proxy URL for custom proxy (e.g., 'http://proxy.example.com:8080')
     user_agent: Optional[str] = None  # Custom user agent string
+    bandwidth_limit_kbps: int = 0  # KB/s, 0 = unlimited
+    connection_timeout: int = 30  # seconds
+    read_timeout: int = 60  # seconds
 
 
 @dataclass

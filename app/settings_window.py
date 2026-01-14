@@ -61,6 +61,12 @@ class SettingsWindow:
             except Exception:
                 pass
         
+        if hasattr(self, 'filters_settings'):
+            try:
+                self.settings['filters'] = self.filters_settings.get_settings()
+            except Exception:
+                pass
+        
         if hasattr(self, 'logging_settings'):
             try:
                 self.settings['logging'] = self.logging_settings.get_settings()
@@ -105,6 +111,7 @@ class SettingsWindow:
         # New tabs
         self.scraper_tab = self.tabview.add(self.translate("Scraper"))
         self.network_tab = self.tabview.add(self.translate("Network"))
+        self.filters_tab = self.tabview.add(self.translate("Filters"))
         self.logging_tab = self.tabview.add(self.translate("Logging"))
         
         # Render all tabs
@@ -118,6 +125,7 @@ class SettingsWindow:
         # Render new tabs
         self.render_scraper_tab(self.scraper_tab)
         self.render_network_tab(self.network_tab)
+        self.render_filters_tab(self.filters_tab)
         self.render_logging_tab(self.logging_tab)
     
     def render_db_tab(self, tab):
@@ -1184,6 +1192,18 @@ class SettingsWindow:
             ctk.CTkLabel(
                 tab,
                 text=f"Error loading network settings: {e}",
+                text_color="red"
+            ).pack(padx=20, pady=20)
+    
+    def render_filters_tab(self, tab):
+        """Render the Filters settings tab."""
+        try:
+            from app.components.settings_tabs import FiltersSettingsTab
+            self.filters_settings = FiltersSettingsTab(tab, self.translate, self.settings)
+        except Exception as e:
+            ctk.CTkLabel(
+                tab,
+                text=f"Error loading filters settings: {e}",
                 text_color="red"
             ).pack(padx=20, pady=20)
     
