@@ -2,6 +2,7 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import threading
+import logging
 import os
 from app.utils.converter import MediaConverter
 
@@ -175,7 +176,7 @@ class ConverterPage(ctk.CTkFrame):
                 if self.converter.convert(input_path, output_path, options, update):
                     success_count += 1
             except Exception as e:
-                print(f"Error converting {input_path}: {e}")
+                logging.error(f"Error converting {input_path}: {e}")
 
         self.app.after(0, lambda: self.finish_conversion(success_count == total))
 
