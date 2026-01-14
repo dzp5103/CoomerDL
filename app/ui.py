@@ -733,9 +733,8 @@ class ImageDownloaderApp(ctk.CTk):
                 error_message=str(e)
             )
         finally:
-            # Restore original folder if it existed
-            if original_folder:
-                self.download_folder = original_folder
+            # Restore original folder (or reset if it was None)
+            self.download_folder = original_folder
 
     # Image processing
     def create_photoimage(self, path, size=(32, 32)):
