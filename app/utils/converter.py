@@ -2,7 +2,7 @@ import subprocess
 import threading
 import os
 import re
-import time
+import shlex
 from typing import Callable, Optional
 from app.utils.ffmpeg_check import get_ffmpeg_path, check_ffprobe
 
@@ -24,9 +24,9 @@ class MediaConverter:
                 "-of", "default=noprint_wrappers=1:nokey=1",
                 file_path
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True)
+            res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
             return float(res.stdout.strip())
-        except:
+        except (ValueError, subprocess.TimeoutExpired, subprocess.SubprocessError):
             return 0
 
     def convert(self, input_path, output_path, options, progress_callback: Optional[Callable[[float, str], None]] = None):
@@ -42,11 +42,14 @@ class MediaConverter:
         # Build Command
         cmd = [self.ffmpeg, "-y", "-i", input_path]
 
-        # Add options
-        # E.g. format is handled by output filename extension usually, but we can force codecs
-        # If options has 'args', split and add
+        # Add options - use shlex.split() for safe argument parsing
+        # This prevents command injection by properly handling shell metacharacters
         if options.get('args'):
-            cmd.extend(options['args'].split())
+            try:
+                extra_args = shlex.split(options['args'])
+                cmd.extend(extra_args)
+            except ValueError as e:
+                raise ValueError(f"Invalid FFmpeg arguments: {e}")
 
         cmd.append(output_path)
 
@@ -75,13 +78,17 @@ class MediaConverter:
                     break
 
                 if line:
-                    # Parse time=HH:MM:SS.ms
-                    # Example: time=00:00:05.12
-                    match = re.search(r"time=(\d{2}):(\d{2}):(\d{2})\.(\d{2})", line)
-                    if match and duration > 0:
-                        h, m, s, ms = map(int, match.groups())
-                        current_sec = h*3600 + m*60 + s + ms/100
-                        percent = min(0.99, current_sec / duration)
+                    # Parse time=HH:MM:SS.fraction
+                    # Examples: time=00:00:05.1, time=00:00:05.12, time=00:00:05.123456
+                    match = re.search(r"time=(\d{2}):(\d{2}):(\d{2})\.(\d+)", line)
+                    if match and duration and duration > 0:
+                        h, m, s = map(int, match.group(1, 2, 3))
+                        frac_str = match.group(4)
+                        frac_sec = int(frac_str) / (10 ** len(frac_str))
+                        current_sec = h * 3600 + m * 60 + s + frac_sec
+                        # Use defensive effective duration to avoid division by zero
+                        effective_duration = max(duration, 1.0)
+                        percent = min(0.99, current_sec / effective_duration)
                         if progress_callback:
                             progress_callback(percent, f"Converting... {int(percent*100)}%")
 
@@ -90,8 +97,12 @@ class MediaConverter:
                 return True
             else:
                 if not self.stop_event.is_set():
-                    # Only raise if not manually stopped
-                    raise Exception("FFmpeg error")
+                    # Capture stderr for better error reporting
+                    stderr_output = self.current_process.stderr.read() if self.current_process.stderr else ""
+                    error_msg = f"FFmpeg conversion failed with return code {self.current_process.returncode}"
+                    if stderr_output:
+                        error_msg += f". Error: {stderr_output[:200]}"
+                    raise Exception(error_msg)
                 return False
 
         except Exception as e:
@@ -103,4 +114,8 @@ class MediaConverter:
     def cancel(self):
         self.stop_event.set()
         if self.current_process:
-            self.current_process.terminate()
+            try:
+                self.current_process.terminate()
+            except OSError:
+                # Process may have already exited; nothing to do.
+                pass

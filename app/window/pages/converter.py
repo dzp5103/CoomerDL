@@ -2,6 +2,7 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import threading
+import logging
 import os
 from app.utils.converter import MediaConverter
 
@@ -12,6 +13,7 @@ class ConverterPage(ctk.CTkFrame):
         self.tr = app.tr
         self.converter = MediaConverter()
         self.converting = False
+        self.conversion_thread = None  # Track conversion thread for proper cleanup
 
         self.create_widgets()
 
@@ -95,8 +97,8 @@ class ConverterPage(ctk.CTkFrame):
             self.input_entry.insert(0, d)
 
     def start_conversion(self):
-        inp = self.input_entry.get().strip()
-        if not inp or not os.path.exists(inp):
+        input_path = self.input_entry.get().strip()
+        if not input_path or not os.path.exists(input_path):
             messagebox.showerror("Error", "Invalid input file or folder.")
             return
 
@@ -105,20 +107,40 @@ class ConverterPage(ctk.CTkFrame):
         options = {"args": args}
 
         files_to_convert = []
-        if os.path.isdir(inp):
+        if os.path.isdir(input_path):
             # Batch mode
             valid_exts = {'.mp4', '.mkv', '.webm', '.avi', '.mov', '.flv', '.wmv', '.m4v', '.mp3', '.wav', '.m4a'}
-            for f in os.listdir(inp):
+            for f in os.listdir(input_path):
                 if os.path.splitext(f)[1].lower() in valid_exts:
-                    full_path = os.path.join(inp, f)
+                    full_path = os.path.join(input_path, f)
                     base, _ = os.path.splitext(full_path)
-                    out_path = f"{base}_converted.{fmt}"
-                    files_to_convert.append((full_path, out_path))
+                    output_path = f"{base}_converted.{fmt}"
+                    
+                    # Check for existing output file to avoid silent overwrite
+                    if os.path.exists(output_path):
+                        overwrite = messagebox.askyesno(
+                            "Confirm overwrite",
+                            f"The output file already exists:\n\n{output_path}\n\nDo you want to overwrite it?"
+                        )
+                        if not overwrite:
+                            continue
+                    
+                    files_to_convert.append((full_path, output_path))
         else:
             # Single file
-            base, _ = os.path.splitext(inp)
-            out_path = f"{base}_converted.{fmt}"
-            files_to_convert.append((inp, out_path))
+            base, _ = os.path.splitext(input_path)
+            output_path = f"{base}_converted.{fmt}"
+            
+            # Check for existing output file to avoid silent overwrite
+            if os.path.exists(output_path):
+                overwrite = messagebox.askyesno(
+                    "Confirm overwrite",
+                    f"The output file already exists:\n\n{output_path}\n\nDo you want to overwrite it?"
+                )
+                if not overwrite:
+                    return
+            
+            files_to_convert.append((input_path, output_path))
 
         if not files_to_convert:
             messagebox.showinfo("Info", "No valid media files found to convert.")
@@ -130,14 +152,19 @@ class ConverterPage(ctk.CTkFrame):
         self.progress_bar.set(0)
         self.status_label.configure(text=f"Starting batch ({len(files_to_convert)} files)...")
 
-        # Run in thread
-        threading.Thread(target=self.run_batch_conversion, args=(files_to_convert, options)).start()
+        # Run in thread and track it
+        self.conversion_thread = threading.Thread(
+            target=self.run_batch_conversion, 
+            args=(files_to_convert, options),
+            daemon=True
+        )
+        self.conversion_thread.start()
 
     def run_batch_conversion(self, file_list, options):
         total = len(file_list)
         success_count = 0
 
-        for i, (inp, out) in enumerate(file_list):
+        for i, (input_path, output_path) in enumerate(file_list):
             if not self.converting: break
 
             def update(p, msg):
@@ -146,10 +173,10 @@ class ConverterPage(ctk.CTkFrame):
                 self.app.after(0, lambda: self.update_ui(global_p, f"File {i+1}/{total}: {msg}"))
 
             try:
-                if self.converter.convert(inp, out, options, update):
+                if self.converter.convert(input_path, output_path, options, update):
                     success_count += 1
             except Exception as e:
-                print(f"Error converting {inp}: {e}")
+                logging.error(f"Error converting {input_path}: {e}")
 
         self.app.after(0, lambda: self.finish_conversion(success_count == total))
 

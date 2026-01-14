@@ -2,16 +2,12 @@ import customtkinter as ctk
 import os
 import sys
 import json
-import threading
 from typing import Optional, Dict, Any, Callable
-from PIL import Image
 
 # Import core components (same as ImageDownloaderApp)
 from app.settings_window import SettingsWindow
-from app.progress_manager import ProgressManager
 from downloader.downloader import Downloader
 from app.models.download_queue import DownloadQueue
-from pathlib import Path
 
 # Constants
 VERSION = "V2.0.0 (UI Overhaul)"
@@ -29,14 +25,14 @@ class SidebarApp(ctk.CTk):
         if sys.platform == "win32":
             try:
                 self.iconbitmap("resources/img/window.ico")
-            except:
+            except (FileNotFoundError, Exception):
                 pass
 
         # 1. Initialize Settings & Translations (Core)
         # We use SettingsWindow logic to load settings, but we might display it differently
         self.settings_helper = SettingsWindow(
             self,
-            self.tr,
+            lambda *args, **kwargs: self.tr(*args, **kwargs),
             self.load_translations,
             self.update_ui_texts,
             self.save_language_preference,
@@ -68,7 +64,14 @@ class SidebarApp(ctk.CTk):
         self.settings_helper.downloader = self.default_downloader # Link back
 
         self.active_downloader = None
-        self.advanced_mode = self.settings.get('advanced_mode', False)
+        
+        # Validate and load advanced_mode setting
+        advanced_mode_value = self.settings.get('advanced_mode', False)
+        if isinstance(advanced_mode_value, bool):
+            self.advanced_mode = advanced_mode_value
+        else:
+            # Fallback to a safe default if the stored value is not a boolean
+            self.advanced_mode = False
 
         # 3. Setup UI Layout
         self.grid_rowconfigure(0, weight=1)
@@ -205,7 +208,7 @@ class SidebarApp(ctk.CTk):
         try:
             with open('resources/config/languages/save_language/language_config.json', 'r') as f:
                 return json.load(f).get('language', 'en')
-        except:
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
             return 'en'
 
     def save_language_preference(self, lang_code):
@@ -219,7 +222,7 @@ class SidebarApp(ctk.CTk):
             with open(path, 'r', encoding='utf-8') as f:
                 all_trans = json.load(f)
                 self.translations = {k: v.get(lang, k) for k, v in all_trans.items()}
-        except:
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
             self.translations = {}
 
     def tr(self, text, **kwargs):
@@ -241,20 +244,31 @@ class SidebarApp(ctk.CTk):
         try:
             with open(path, 'r') as f:
                 return json.load(f).get('download_folder', '')
-        except:
+        except (FileNotFoundError, json.JSONDecodeError, KeyError):
             return ''
 
     def log_message(self, msg):
         # Broadcast log to active page if it has a log viewer
-        print(f"[LOG] {msg}") # Debug for now
+        import logging
+        logging.info(f"[CoomerDL] {msg}")
         if hasattr(self.current_page, 'log_message'):
             self.current_page.log_message(msg)
 
     def update_progress(self, *args, **kwargs):
-        pass # To be implemented properly
+        """
+        Callback to update per-item download progress.
+        Delegates to the current page if it implements `update_progress`.
+        """
+        if hasattr(self, "current_page") and hasattr(self.current_page, "update_progress"):
+            self.current_page.update_progress(*args, **kwargs)
 
     def update_global_progress(self, *args, **kwargs):
-        pass # To be implemented properly
+        """
+        Callback to update overall/global download progress.
+        Delegates to the current page if it implements `update_global_progress`.
+        """
+        if hasattr(self, "current_page") and hasattr(self.current_page, "update_global_progress"):
+            self.current_page.update_global_progress(*args, **kwargs)
 
     def on_queue_changed(self):
         # Update badge on queue button?

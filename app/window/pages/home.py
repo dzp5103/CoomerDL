@@ -1,6 +1,8 @@
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import re
+from urllib.parse import urlparse
 
 class HomePage(ctk.CTkFrame):
     def __init__(self, parent, app, **kwargs):
@@ -91,18 +93,28 @@ class HomePage(ctk.CTkFrame):
         ctk.CTkLabel(self.advanced_options_frame, text="FFmpeg Args:").grid(row=2, column=0, padx=10, pady=5, sticky="w")
         self.ffmpeg_args_entry = ctk.CTkEntry(self.advanced_options_frame, placeholder_text="-vcodec libx264 ...")
         self.ffmpeg_args_entry.grid(row=2, column=1, columnspan=3, padx=10, pady=5, sticky="ew")
+        
+        # Note about advanced options (row 3 to avoid conflict)
+        note_label = ctk.CTkLabel(
+            self.advanced_options_frame, 
+            text="Note: Format, Container, and FFmpeg Args are stored but not yet applied during download.",
+            font=("Arial", 9),
+            text_color="orange",
+            wraplength=600
+        )
+        note_label.grid(row=3, column=0, columnspan=4, padx=10, pady=(0, 5), sticky="w")
 
         # New Advanced Options
         # Bandwidth Limit
-        ctk.CTkLabel(self.advanced_options_frame, text="Speed Limit (MB/s):").grid(row=3, column=0, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self.advanced_options_frame, text="Speed Limit (MB/s):").grid(row=4, column=0, padx=10, pady=5, sticky="w")
         self.speed_slider = ctk.CTkSlider(self.advanced_options_frame, from_=0, to=10, number_of_steps=20)
         self.speed_slider.set(0) # 0 = Unlimited
-        self.speed_slider.grid(row=3, column=1, padx=10, pady=5, sticky="ew")
+        self.speed_slider.grid(row=4, column=1, padx=10, pady=5, sticky="ew")
 
         # Date Range
-        ctk.CTkLabel(self.advanced_options_frame, text="Date Range:").grid(row=3, column=2, padx=10, pady=5, sticky="w")
+        ctk.CTkLabel(self.advanced_options_frame, text="Date Range:").grid(row=4, column=2, padx=10, pady=5, sticky="w")
         date_frame = ctk.CTkFrame(self.advanced_options_frame, fg_color="transparent")
-        date_frame.grid(row=3, column=3, padx=10, pady=5, sticky="ew")
+        date_frame.grid(row=4, column=3, padx=10, pady=5, sticky="ew")
         self.date_start = ctk.CTkEntry(date_frame, placeholder_text="YYYYMMDD", width=70)
         self.date_start.pack(side="left", padx=2)
         ctk.CTkLabel(date_frame, text="-").pack(side="left")
@@ -112,9 +124,9 @@ class HomePage(ctk.CTkFrame):
         # Proxy Toggle
         self.proxy_var = ctk.BooleanVar(value=False)
         self.proxy_check = ctk.CTkCheckBox(self.advanced_options_frame, text="Use Proxy", variable=self.proxy_var)
-        self.proxy_check.grid(row=4, column=0, padx=10, pady=5, sticky="w")
+        self.proxy_check.grid(row=5, column=0, padx=10, pady=5, sticky="w")
 
-        ctk.CTkLabel(self.advanced_options_frame, text="(Configure in Settings -> Network)", font=("Arial", 10), text_color="gray").grid(row=4, column=1, padx=0, pady=5, sticky="w")
+        ctk.CTkLabel(self.advanced_options_frame, text="(Configure in Settings -> Network)", font=("Arial", 10), text_color="gray").grid(row=5, column=1, padx=0, pady=5, sticky="w")
 
         # --- Download Button ---
         self.download_btn = ctk.CTkButton(
@@ -194,6 +206,31 @@ class HomePage(ctk.CTkFrame):
             return
 
         urls = [u.strip() for u in urls_text.split('\n') if u.strip()]
+        
+        # Validate URLs before adding to queue
+        invalid_urls = []
+        valid_urls = []
+        for url in urls:
+            if self.validate_url(url):
+                valid_urls.append(url)
+            else:
+                invalid_urls.append(url)
+        
+        if invalid_urls:
+            response = messagebox.askyesno(
+                "Invalid URLs Detected",
+                f"Found {len(invalid_urls)} invalid URL(s):\n\n" +
+                "\n".join(invalid_urls[:3]) +
+                ("\n..." if len(invalid_urls) > 3 else "") +
+                f"\n\nDo you want to continue with the {len(valid_urls)} valid URL(s)?"
+            )
+            if not response:
+                return
+        
+        if not valid_urls:
+            messagebox.showerror("Error", "No valid URLs to process.")
+            return
+        
         folder = self.folder_entry.get().strip()
 
         if not folder:
@@ -208,17 +245,28 @@ class HomePage(ctk.CTkFrame):
 
         # Add to Queue via App
         count = 0
-        for url in urls:
+        for url in valid_urls:
             self.app.download_queue.add(
                 url=url,
                 download_folder=folder,
                 priority=priority
-                # We could store advanced options (format, container) in queue metadata if supported
+                # Note: Advanced options (format, container, ffmpeg args) are collected
+                # but not yet passed to the queue. This functionality will be implemented
+                # in a future update when queue metadata support is added.
             )
             count += 1
 
         messagebox.showinfo("Success", f"Added {count} items to queue.")
         self.url_textbox.delete("1.0", "end")
+    
+    def validate_url(self, url):
+        """Basic URL validation to check format and protocol."""
+        try:
+            result = urlparse(url)
+            # Check if scheme and netloc are present
+            return all([result.scheme, result.netloc]) and result.scheme in ['http', 'https']
+        except Exception:
+            return False
 
     def log_message(self, msg):
         # We could show toast or small log line here
