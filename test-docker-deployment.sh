@@ -13,7 +13,8 @@ IMAGE_NAME="coomerdl-test"
 CONTAINER_NAME="coomerdl-validation"
 TEST_PORT=18080
 VNC_PORT=15900
-VNC_PASSWORD="test-password-123"
+# Generate random password for testing (or use obvious test value)
+VNC_PASSWORD="TEST-$(date +%s)-INSECURE"
 
 # Colors for output
 GREEN='\033[0;32m'
@@ -46,10 +47,12 @@ trap cleanup EXIT
 
 # Step 1: Build the image
 print_info "Step 1: Building Docker image..."
-if docker build -t $IMAGE_NAME . > /dev/null 2>&1; then
+if docker build -t $IMAGE_NAME . 2>&1 | grep -q "Successfully"; then
     print_success "Docker image built successfully"
 else
     print_error "Failed to build Docker image"
+    echo "Running docker build with full output..."
+    docker build -t $IMAGE_NAME .
     exit 1
 fi
 
@@ -108,11 +111,11 @@ fi
 
 # Step 6: Check running processes
 print_info "Step 6: Verifying all services are running..."
-SERVICES=("supervisord" "Xvfb" "fluxbox" "x11vnc" "websockify" "python main.py")
+SERVICES=("supervisord" "Xvfb" "fluxbox" "x11vnc" "websockify" "main.py")
 ALL_RUNNING=true
 
 for service in "${SERVICES[@]}"; do
-    if docker exec $CONTAINER_NAME ps aux | grep -q "[${service:0:1}]${service:1}"; then
+    if docker exec $CONTAINER_NAME pgrep -f "$service" > /dev/null 2>&1; then
         print_success "$service is running"
     else
         print_error "$service is NOT running"
@@ -137,11 +140,13 @@ fi
 
 # Step 8: Check logs for errors
 print_info "Step 8: Checking for critical errors in logs..."
-ERRORS=$(docker logs $CONTAINER_NAME 2>&1 | grep -i "error\|exception\|failed" | grep -v "Failed to read: session" | wc -l)
-if [ "$ERRORS" -eq 0 ]; then
+# Look for specific critical error patterns, excluding known benign warnings
+CRITICAL_ERRORS=$(docker logs $CONTAINER_NAME 2>&1 | grep -iE "fatal|critical|exception|traceback|segfault" | wc -l)
+if [ "$CRITICAL_ERRORS" -eq 0 ]; then
     print_success "No critical errors found in logs"
 else
-    print_info "Found $ERRORS potential error messages (review logs manually)"
+    print_error "Found $CRITICAL_ERRORS critical error(s) - review logs carefully"
+    docker logs $CONTAINER_NAME 2>&1 | grep -iE "fatal|critical|exception|traceback|segfault" | head -10
 fi
 
 # Success!

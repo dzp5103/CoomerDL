@@ -55,9 +55,9 @@ ENV DISPLAY=:0 \
     VNC_PASSWORD=${VNC_PASSWORD_ARG}
 
 # Expose ports
-# PORT: Dynamic port for Cloud Run (defaults to 8080)
-# 5900: VNC server (direct)
-EXPOSE ${PORT} 5900
+# 8080: Main entry (noVNC web interface, Cloud Run dynamic port)
+# 5900: VNC server (direct VNC connection)
+EXPOSE 8080 5900
 
 # Copy configuration files
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -68,8 +68,9 @@ RUN chmod +x /app/entrypoint.sh && \
     mkdir -p /var/log/supervisor
 
 # Health check to ensure services are running
+# Note: Uses literal port 8080 as Docker HEALTHCHECK doesn't support variable expansion
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/vnc.html || exit 1
+    CMD curl -f http://localhost:8080/vnc.html || exit 1
 
 # Define entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]
