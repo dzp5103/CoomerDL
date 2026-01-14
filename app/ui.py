@@ -343,6 +343,7 @@ class ImageDownloaderApp(ctk.CTk):
             tr=self.tr,
             on_download=self.start_download,
             on_cancel=self.cancel_download,
+            on_add_to_queue=self.add_to_queue,
             autoscroll_var=self.autoscroll_logs_var
         )
         self.action_panel.pack(pady=10, fill='x', padx=20)
@@ -518,7 +519,7 @@ class ImageDownloaderApp(ctk.CTk):
         donors_button.bind("<Button-1>", lambda e: "break")
         
         # Botón Queue
-        queue_button = ctk.CTkButton(
+        self.queue_button = ctk.CTkButton(
             self.menu_bar,
             text="📋 " + self.tr("Queue"),
             width=80,
@@ -526,8 +527,8 @@ class ImageDownloaderApp(ctk.CTk):
             hover_color="gray25",
             command=self.show_queue_manager
         )
-        queue_button.pack(side="left")
-        queue_button.bind("<Button-1>", lambda e: "break")
+        self.queue_button.pack(side="left")
+        self.queue_button.bind("<Button-1>", lambda e: "break")
 
         # Inicializar variables para los menús desplegables
         self.archivo_menu_frame = None
@@ -622,14 +623,119 @@ class ImageDownloaderApp(ctk.CTk):
     # Queue management methods
     def on_queue_changed(self):
         """Called when the download queue changes."""
-        # Could update UI badge/counter here if needed
-        pass
+        # Update the queue button badge
+        self.update_queue_badge()
     
     def show_queue_manager(self):
         """Show the download queue manager dialog."""
         from app.dialogs.queue_dialog import QueueDialog
-        queue_dialog = QueueDialog(self, self.download_queue, self.tr)
+        queue_dialog = QueueDialog(
+            self, 
+            self.download_queue, 
+            self.tr,
+            on_process_queue=self.process_queue
+        )
         queue_dialog.focus_set()
+    
+    def add_to_queue(self):
+        """Add URLs from input to the download queue."""
+        # Get URLs from the input panel (supports batch input)
+        urls = self.input_panel.get_urls()
+        
+        if not urls:
+            messagebox.showerror(self.tr("Error"), self.tr("Por favor, ingresa al menos una URL."))
+            return
+            
+        if not hasattr(self, 'download_folder') or not self.download_folder:
+            messagebox.showerror(self.tr("Error"), self.tr("Por favor, selecciona una carpeta de descarga."))
+            return
+        
+        # Add each URL to the queue
+        added_count = 0
+        for url in urls:
+            url = url.strip()
+            if url:
+                from app.models.download_queue import QueuePriority
+                self.download_queue.add(
+                    url=url,
+                    download_folder=self.download_folder,
+                    priority=QueuePriority.NORMAL
+                )
+                added_count += 1
+        
+        # Show success message
+        if added_count > 0:
+            self.add_log_message_safe(
+                self.tr(f"{added_count} URL(s) added to queue")
+            )
+            messagebox.showinfo(
+                self.tr("Success"),
+                self.tr(f"{added_count} URL(s) added to queue. Open Queue Manager to view and process.")
+            )
+            
+            # Clear input after adding to queue
+            self.input_panel.url_entry.delete("1.0", "end")
+            
+            # Update queue button badge if menu bar exists
+            self.update_queue_badge()
+
+    def update_queue_badge(self):
+        """Update the queue button to show pending count."""
+        stats = self.download_queue.get_stats()
+        pending_count = stats['pending'] + stats['downloading']
+        
+        # Update the queue button text with badge
+        if hasattr(self, 'queue_button') and self.queue_button:
+            if pending_count > 0:
+                self.queue_button.configure(text=f"📋 {self.tr('Queue')} ({pending_count})")
+            else:
+                self.queue_button.configure(text="📋 " + self.tr("Queue"))
+    
+    def process_queue(self):
+        """Process pending items from the download queue."""
+        # Get the next pending item
+        item = self.download_queue.get_next_pending()
+        
+        if not item:
+            messagebox.showinfo(
+                self.tr("Queue Empty"),
+                self.tr("No pending items in queue to process.")
+            )
+            return
+        
+        # Update item status to downloading
+        from app.models.download_queue import QueueItemStatus
+        self.download_queue.update_status(item.id, QueueItemStatus.DOWNLOADING)
+        
+        # Log the start
+        self.add_log_message_safe(
+            self.tr(f"Processing queue item: {item.url[:60]}...")
+        )
+        
+        # Set the download folder for this item
+        original_folder = self.download_folder if hasattr(self, 'download_folder') else None
+        self.download_folder = item.download_folder
+        
+        # Store the item ID for status updates
+        self._current_queue_item_id = item.id
+        
+        # Process the URL using existing download logic
+        try:
+            self._process_single_url(item.url)
+            # Note: The actual completion/failure will be handled in the download callbacks
+        except Exception as e:
+            self.add_log_message_safe(
+                self.tr(f"Error processing queue item: {str(e)}")
+            )
+            self.download_queue.update_status(
+                item.id, 
+                QueueItemStatus.FAILED,
+                error_message=str(e)
+            )
+        finally:
+            # Restore original folder if it existed
+            if original_folder:
+                self.download_folder = original_folder
 
     # Image processing
     def create_photoimage(self, path, size=(32, 32)):
@@ -1019,6 +1125,15 @@ class ImageDownloaderApp(ctk.CTk):
             self.active_downloader.request_cancel()
             self.active_downloader = None
             self.clear_progress_bars()
+            
+            # Update queue item status if cancelling from queue
+            if hasattr(self, '_current_queue_item_id') and self._current_queue_item_id:
+                from app.models.download_queue import QueueItemStatus
+                self.download_queue.update_status(
+                    self._current_queue_item_id,
+                    QueueItemStatus.CANCELLED
+                )
+                self._current_queue_item_id = None
         else:
             self.add_log_message_safe(self.tr("No hay una descarga en curso para cancelar."))
         self.enable_widgets()
@@ -1175,6 +1290,24 @@ class ImageDownloaderApp(ctk.CTk):
     def enable_widgets(self):
         self.update_queue.put(lambda: self.download_button.configure(state="normal"))
         self.update_queue.put(lambda: self.cancel_button.configure(state="disabled"))
+        
+        # Update queue item status if processing from queue
+        if hasattr(self, '_current_queue_item_id') and self._current_queue_item_id:
+            from app.models.download_queue import QueueItemStatus
+            # Check if there were errors
+            if self.errors:
+                self.download_queue.update_status(
+                    self._current_queue_item_id,
+                    QueueItemStatus.FAILED,
+                    error_message="; ".join(self.errors)
+                )
+            else:
+                self.download_queue.update_status(
+                    self._current_queue_item_id,
+                    QueueItemStatus.COMPLETED,
+                    progress=1.0
+                )
+            self._current_queue_item_id = None
     
     # Save and load download folder
     def save_download_folder(self, folder_path):
