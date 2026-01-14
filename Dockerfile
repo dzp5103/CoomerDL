@@ -62,15 +62,16 @@ EXPOSE 8080 5900
 # Copy configuration files
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY entrypoint.sh /app/entrypoint.sh
+COPY healthcheck.sh /app/healthcheck.sh
 
-# Make entrypoint executable and create necessary directories
-RUN chmod +x /app/entrypoint.sh && \
+# Make scripts executable and create necessary directories
+RUN chmod +x /app/entrypoint.sh /app/healthcheck.sh && \
     mkdir -p /var/log/supervisor
 
 # Health check to ensure services are running
-# Note: Uses literal port 8080 as Docker HEALTHCHECK doesn't support variable expansion
+# Uses healthcheck.sh script that respects PORT environment variable
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/vnc.html || exit 1
+    CMD /app/healthcheck.sh
 
 # Define entrypoint
 ENTRYPOINT ["/app/entrypoint.sh"]

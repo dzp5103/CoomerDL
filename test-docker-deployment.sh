@@ -37,9 +37,9 @@ print_info() {
 
 cleanup() {
     print_info "Cleaning up..."
-    docker stop $CONTAINER_NAME 2>/dev/null || true
-    docker rm $CONTAINER_NAME 2>/dev/null || true
-    docker rmi $IMAGE_NAME 2>/dev/null || true
+    docker stop "$CONTAINER_NAME" 2>/dev/null || true
+    docker rm "$CONTAINER_NAME" 2>/dev/null || true
+    docker rmi "$IMAGE_NAME" 2>/dev/null || true
 }
 
 # Trap to cleanup on exit
@@ -47,12 +47,12 @@ trap cleanup EXIT
 
 # Step 1: Build the image
 print_info "Step 1: Building Docker image..."
-if docker build -t $IMAGE_NAME . 2>&1 | grep -q "Successfully"; then
+if docker build -t "$IMAGE_NAME" . 2>&1 | grep -q "Successfully"; then
     print_success "Docker image built successfully"
 else
     print_error "Failed to build Docker image"
     echo "Running docker build with full output..."
-    docker build -t $IMAGE_NAME .
+    docker build -t "$IMAGE_NAME" .
     exit 1
 fi
 
@@ -62,7 +62,7 @@ CONTAINER_ID=$(docker run -d \
     --name $CONTAINER_NAME \
     -p $TEST_PORT:8080 \
     -p $VNC_PORT:5900 \
-    -e VNC_PASSWORD=$VNC_PASSWORD \
+    -e VNC_PASSWORD="$VNC_PASSWORD" \
     -e PORT=8080 \
     $IMAGE_NAME)
 
@@ -161,9 +161,9 @@ echo "  - VNC Direct:  localhost:$VNC_PORT"
 echo "  - VNC Password: $VNC_PASSWORD"
 echo
 echo "To stop and remove the test container:"
-echo "  docker stop $CONTAINER_NAME && docker rm $CONTAINER_NAME"
+echo "  docker stop "$CONTAINER_NAME" && docker rm "$CONTAINER_NAME""
 echo
 
 # Don't cleanup if tests passed - let user explore
 trap - EXIT
-print_info "Container left running for manual inspection. Run 'docker stop $CONTAINER_NAME' when done."
+print_info "Container left running for manual inspection. Run 'docker stop "$CONTAINER_NAME"' when done."
