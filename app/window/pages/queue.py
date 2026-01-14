@@ -3,12 +3,16 @@ import tkinter as tk
 from tkinter import messagebox
 from app.models.download_queue import QueueItemStatus
 
+# Constants
+QUEUE_REFRESH_INTERVAL_MS = 2000  # Auto-refresh interval in milliseconds
+
 class QueuePage(ctk.CTkFrame):
     def __init__(self, parent, app, **kwargs):
         super().__init__(parent, **kwargs)
         self.app = app
         self.tr = app.tr
         self.queue = app.download_queue
+        self._refresh_scheduled = False  # Track scheduled refresh to prevent leaks
 
         self.create_widgets()
         self.refresh_queue_display()
@@ -37,7 +41,10 @@ class QueuePage(ctk.CTkFrame):
     def refresh_loop(self):
         if self.winfo_exists():
             self.refresh_queue_display()
-            self.after(2000, self.refresh_loop)
+            self._refresh_scheduled = True
+            self.after(QUEUE_REFRESH_INTERVAL_MS, self.refresh_loop)
+        else:
+            self._refresh_scheduled = False
 
     def refresh_queue_display(self):
         # This is a naive implementation: clearing and redrawing.
@@ -88,18 +95,22 @@ class QueuePage(ctk.CTkFrame):
         actions.pack(side="right", padx=5)
 
         if item.status in [QueueItemStatus.PENDING, QueueItemStatus.PAUSED]:
-             ctk.CTkButton(actions, text="✕", width=30, height=30, fg_color="transparent", text_color="red", command=lambda: self.remove_item(item.id)).pack(side="left")
+            ctk.CTkButton(actions, text="✕", width=30, height=30, fg_color="transparent", text_color="red", command=lambda: self.remove_item(item.id)).pack(side="left")
 
     def process_queue(self):
-        # Trigger processing in App/Queue
-        # Since logic is tied to SidebarApp usually, we might need a method there or call queue logic directly.
-        # Currently SidebarApp doesn't implement process_queue fully (it was in UI.py).
-        # I should probably move that logic to SidebarApp or QueuePage.
-        # For now, let's assume SidebarApp has it or we implement it here.
-        # But wait, SidebarApp shell didn't have process_queue.
-        # I'll implement a simple one here or stub it.
-        messagebox.showinfo("Info", "Queue processing started (Mock)")
-        # In real impl, we'd call app.process_queue()
+        """
+        Handler for the "Process Queue" action.
+
+        Real queue processing logic is not implemented here yet. To avoid
+        misleading users, we explicitly inform them that this feature is
+        currently unavailable instead of pretending to start processing.
+        """
+        messagebox.showinfo(
+            "Feature unavailable",
+            "Processing the queue is not available in this version.\n\n"
+            "You can still manage queued items (remove items or clear completed), "
+            "but starting downloads from this screen has not been implemented yet."
+        )
 
     def remove_item(self, item_id):
         self.queue.remove(item_id)

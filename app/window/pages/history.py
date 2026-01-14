@@ -1,5 +1,6 @@
 import customtkinter as ctk
 import sqlite3
+import sys
 import os
 from tkinter import messagebox, filedialog
 import csv
@@ -55,23 +56,26 @@ class HistoryPage(ctk.CTkFrame):
             return
 
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT media_url, file_path, file_size, user_id, post_id, downloaded_at FROM downloads ORDER BY downloaded_at DESC LIMIT 500")
-            rows = cursor.fetchall()
-            for row in rows:
-                self.history_items.append({
-                    'url': row[0],
-                    'file_path': row[1],
-                    'file_size': row[2] or 0,
-                    'user_id': row[3],
-                    'post_id': row[4],
-                    'date': row[5],
-                    'status': "completed" if row[1] and os.path.exists(row[1]) else "deleted"
-                })
-            conn.close()
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT media_url, file_path, file_size, user_id, post_id, downloaded_at FROM downloads ORDER BY downloaded_at DESC LIMIT 500")
+                rows = cursor.fetchall()
+                for row in rows:
+                    self.history_items.append({
+                        'url': row[0],
+                        'file_path': row[1],
+                        'file_size': row[2] or 0,
+                        'user_id': row[3],
+                        'post_id': row[4],
+                        'date': row[5],
+                        'status': "completed" if row[1] and os.path.exists(row[1]) else "deleted"
+                    })
         except Exception as e:
             print(f"Error loading history: {e}")
+            messagebox.showerror(
+                self.tr("Error"),
+                self.tr("Failed to load download history. Please try again later.")
+            )
 
         self.update_display()
 
@@ -111,12 +115,16 @@ class HistoryPage(ctk.CTkFrame):
             ctk.CTkButton(card, text="Open", width=60, height=24, command=lambda: self.open_file(item['file_path'])).pack(side="right", padx=10)
 
     def open_file(self, path):
-        if sys.platform == 'win32':
-            os.startfile(path)
-        else:
-            import subprocess
-            subprocess.call(['open', path]) # macOS
-            # subprocess.call(['xdg-open', path]) # Linux
+        import subprocess
+        try:
+            if sys.platform == 'win32':
+                os.startfile(path)
+            elif sys.platform == 'darwin':
+                subprocess.call(['open', path])
+            else:  # Linux and other Unix-like systems
+                subprocess.call(['xdg-open', path])
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to open file: {e}")
 
     def export_history(self):
         path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV", "*.csv")])
@@ -129,15 +137,16 @@ class HistoryPage(ctk.CTkFrame):
                         writer.writerow([i['url'], i['file_path'], i['file_size'], i['date']])
                 messagebox.showinfo("Success", "Exported successfully.")
             except Exception as e:
-                messagebox.showerror("Error", str(e))
+                messagebox.showerror("Error", f"Failed to export history: {str(e)}")
 
     def clear_history(self):
         if messagebox.askyesno("Confirm", "Clear all history?"):
             try:
-                conn = sqlite3.connect(self.db_path)
-                conn.execute("DELETE FROM downloads")
-                conn.commit()
-                conn.close()
+                with sqlite3.connect(self.db_path) as conn:
+                    conn.execute("DELETE FROM downloads")
+                    conn.commit()
                 self.load_history()
+            except sqlite3.Error as e:
+                messagebox.showerror("Error", f"Database error: {str(e)}")
             except Exception as e:
-                messagebox.showerror("Error", str(e))
+                messagebox.showerror("Error", f"Failed to clear history: {str(e)}")

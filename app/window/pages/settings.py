@@ -49,10 +49,15 @@ class SettingsPage(ctk.CTkFrame):
         self.refresh_tabs()
 
     def refresh_tabs(self):
-        # We can't easily remove tabs in CTkTabview without destroying them usually,
-        # but delete works.
-        # However, re-rendering might be expensive or state-losing.
-        # A better way: Check which tabs should be present vs are present.
+        """
+        Refresh pattern:
+        Determine which tabs should be visible for the current mode (basic/advanced),
+        then reconcile that with the tabs that actually exist in the CTkTabview by
+        deleting tabs that should no longer be shown and creating any missing ones.
+        CTkTabview does not expose a simple "show/hide" API, so we manage tabs by
+        adding/removing them. This may re-render content when a tab is recreated,
+        but it keeps the UI state consistent and avoids hidden tabs with stale content.
+        """
 
         should_show = []
         for name, render_func, is_advanced in self.tab_names:
@@ -84,9 +89,14 @@ class SettingsPage(ctk.CTkFrame):
 
         self.refresh_tabs()
 
-        # Notify other pages if possible (Home Page expander visibility)
-        # We can force refresh if we had a reference, or they check on focus.
-        # Ideally SidebarApp has a refresh method or event.
-        # For now, Home Page checks app.advanced_mode in its __init__ or manual refresh.
-        # We'll trigger a UI update on the app to be safe
-        self.app.update_ui_texts() # Placeholder for refresh
+        # Notify other pages that depend on advanced_mode (e.g. Home Page expander visibility).
+        # Prefer a generic event-style callback if the app exposes one, and fall back to any
+        # existing UI refresh method to preserve current behavior.
+        if hasattr(self.app, "on_settings_changed"):
+            try:
+                self.app.on_settings_changed("advanced_mode")
+            except TypeError:
+                # Support a no-argument variant if that's how on_settings_changed is defined.
+                self.app.on_settings_changed()
+        elif hasattr(self.app, "update_ui_texts"):
+            self.app.update_ui_texts()
