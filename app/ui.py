@@ -114,8 +114,6 @@ class ImageDownloaderApp(ctk.CTk):
         self._queue_progress_throttle_seconds = 0.25
         
         # Initialize download scheduler
-        from downloader.scheduler import DownloadScheduler
-        import os
         os.makedirs("resources/config", exist_ok=True)
         self.scheduler = DownloadScheduler(
             db_path="resources/config/scheduler.db",
@@ -715,7 +713,6 @@ class ImageDownloaderApp(ctk.CTk):
     
     def handle_scheduled_download(self, job: Any) -> None:
         """Handle a scheduled download job when it's due."""
-        from downloader.scheduler import ScheduleStatus
         
         # Update UI to show scheduled download is starting
         self.after(0, lambda: self.add_log_message_safe(

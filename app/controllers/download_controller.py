@@ -521,8 +521,7 @@ class DownloadController:
             embed_metadata=self.settings.get('ytdlp_embed_metadata', True),
             download_subtitles=self.settings.get('ytdlp_download_subtitles', False),
             subtitle_languages=self.settings.get('ytdlp_subtitle_languages', 'en'),
-            cookies_from_browser=self.settings.get('ytdlp_cookies_browser', None) 
-                if self.settings.get('ytdlp_cookies_browser') != "None" else None
+            cookies_from_browser=self.settings.get('ytdlp_cookies_browser') if self.settings.get('ytdlp_cookies_browser') not in [None, 'None'] else None
         )
         
         # Try to get downloader from factory
