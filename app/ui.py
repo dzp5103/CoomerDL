@@ -112,6 +112,16 @@ class ImageDownloaderApp(ctk.CTk):
         self._process_queue_all_active = False
         self._queue_progress_last_update = 0.0
         self._queue_progress_throttle_seconds = 0.25
+        
+        # Initialize download scheduler
+        from downloader.scheduler import DownloadScheduler
+        import os
+        os.makedirs("resources/config", exist_ok=True)
+        self.scheduler = DownloadScheduler(
+            db_path="resources/config/scheduler.db",
+            on_job_due=self.handle_scheduled_download
+        )
+        self.scheduler.start()
 
         # Initialize UI
         self.initialize_ui()
@@ -192,6 +202,9 @@ class ImageDownloaderApp(ctk.CTk):
                 self.tr("Hay una descarga en progreso. Por favor, cancela la descarga antes de cerrar.")
             )
         else:
+            # Stop the scheduler before closing
+            if hasattr(self, 'scheduler'):
+                self.scheduler.stop()
             self.destroy()
 
     def is_download_active(self) -> bool:
@@ -570,6 +583,18 @@ class ImageDownloaderApp(ctk.CTk):
         )
         self.queue_button.pack(side="left")
         self.queue_button.bind("<Button-1>", lambda e: "break")
+        
+        # Botón Schedule
+        schedule_button = ctk.CTkButton(
+            self.menu_bar,
+            text="⏰ " + self.tr("Schedule"),
+            width=80,
+            fg_color="transparent",
+            hover_color="gray25",
+            command=self.show_scheduler
+        )
+        schedule_button.pack(side="left")
+        schedule_button.bind("<Button-1>", lambda e: "break")
 
         # Inicializar variables para los menús desplegables
         self.archivo_menu_frame = None
@@ -681,6 +706,48 @@ class ImageDownloaderApp(ctk.CTk):
             on_stop_processing=self.stop_queue_processing
         )
         queue_dialog.focus_set()
+    
+    def show_scheduler(self) -> None:
+        """Show the download scheduler dialog."""
+        from app.dialogs.schedule_dialog import ScheduleDialog
+        dialog = ScheduleDialog(self, self.tr, self.scheduler)
+        dialog.wait_window()
+    
+    def handle_scheduled_download(self, job: Any) -> None:
+        """Handle a scheduled download job when it's due."""
+        from downloader.scheduler import ScheduleStatus
+        
+        # Update UI to show scheduled download is starting
+        self.after(0, lambda: self.add_log_message_safe(
+            self.tr(f"Starting scheduled download: {job.name}")
+        ))
+        
+        # Set download folder from job
+        self.download_folder = job.download_folder
+        
+        # Set URL in input panel
+        self.after(0, lambda: self.input_panel.url_entry.delete("1.0", "end"))
+        self.after(0, lambda: self.input_panel.url_entry.insert("1.0", job.url))
+        
+        # Trigger download
+        try:
+            self.after(0, lambda: self._process_single_url(job.url))
+            
+            # Update job status to completed
+            job.status = ScheduleStatus.COMPLETED
+            self.scheduler.update_job(job)
+            
+            self.after(0, lambda: self.add_log_message_safe(
+                self.tr(f"Scheduled download completed: {job.name}")
+            ))
+        except Exception as e:
+            # Update job status to failed
+            job.status = ScheduleStatus.FAILED
+            self.scheduler.update_job(job)
+            
+            self.after(0, lambda: self.add_log_message_safe(
+                self.tr(f"Scheduled download failed: {job.name} - {str(e)}")
+            ))
 
     def stop_queue_processing(self) -> None:
         """Stop Process All mode (does not cancel an active download)."""
