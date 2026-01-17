@@ -1,0 +1,59 @@
+# Include documentation
+include README.md
+include LICENSE
+include DEPLOYMENT.md
+include CURRENT_PROGRESS.md
+
+# Include requirements
+include requirements.txt
+include requirements-dev.txt
+include runtime.txt
+
+# Include configuration files
+include pyproject.toml
+include setup.py
+
+# Include resource files
+recursive-include resources *
+recursive-include frontend/dist *
+
+# Include scripts
+recursive-include scripts *.sh *.py
+recursive-include scripts README.md
+
+# Include docs
+recursive-include docs *.md
+
+# Exclude unnecessary files
+global-exclude __pycache__
+global-exclude *.py[co]
+global-exclude .DS_Store
+global-exclude *.swp
+global-exclude *~
+
+# Exclude development and CI files
+exclude .gitignore
+exclude .pre-commit-config.yaml
+exclude .dockerignore
+exclude .gcloudignore
+recursive-exclude .github *
+recursive-exclude .git *
+recursive-exclude tests *
+recursive-exclude build *
+recursive-exclude dist *
+recursive-exclude *.egg-info *
+
+# Exclude cloud deployment files (users should get them from repo)
+exclude cloudbuild.yaml
+exclude app.yaml
+exclude app.json
+exclude heroku.yml
+exclude Procfile
+exclude supervisord.conf
+exclude firebase.json
+exclude docker-compose.yml
+exclude Dockerfile
+exclude Dockerfile.webapp
+exclude CoomerDL.spec
+recursive-exclude aws *
+recursive-exclude azure *

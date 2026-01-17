@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -27,6 +27,63 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Multimedia",
 ]
+dependencies = [
+    "customtkinter",
+    "beautifulsoup4",
+    "urllib3",
+    "requests",
+    "pillow",
+    "psutil",
+    "markdown2",
+    "tkinterweb",
+    "cloudscraper",
+    "selenium",
+    "yt-dlp",
+    "gallery-dl",
+    "tkinterdnd2",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "pydantic>=2.4.0",
+    "pydantic-settings>=2.0.0",
+    "python-multipart>=0.0.6",
+    "websockets>=12.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "python-dateutil>=2.8.2",
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.12.0",
+    "psycopg2-binary>=2.9.9",
+    "google-cloud-storage>=2.10.0",
+    "redis>=5.0.0",
+    "hiredis>=2.2.0",
+    "gunicorn>=21.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.10.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "types-requests",
+    "types-beautifulsoup4",
+    "types-Pillow",
+    "pre-commit>=3.0.0",
+    "bandit[toml]>=1.7.0",
+    "interrogate>=1.5.0",
+    "flake8-docstrings>=1.7.0",
+    "flake8-bugbear>=23.0.0",
+    "flake8-comprehensions>=3.12.0",
+    "ipython>=8.0.0",
+    "ipdb>=0.13.0",
+]
+
+[project.scripts]
+coomerdl = "main:main"
 
 [project.urls]
 Homepage = "https://github.com/primoscope/CoomerDL"
