@@ -126,28 +126,86 @@ CoomerDL is available in two versions:
 
 ### Desktop App - Quick Start
 
-### For Windows Users (Easiest)
+### Method 1: Easy Installer (Recommended) ⭐
+
+The easiest way to get started with CoomerDL:
+
+```bash
+# Download the repository
+git clone https://github.com/primoscope/CoomerDL.git
+cd CoomerDL
+
+# Run the universal installer
+python install.py
+```
+
+The installer will:
+- ✅ Check Python version (3.8+ required)
+- ✅ Check for FFmpeg (optional)
+- ✅ Create a virtual environment
+- ✅ Install all dependencies
+- ✅ Test the installation
+- ✅ Create a launcher script
+
+Then just run:
+- **Windows**: Double-click `start_coomerdl.bat`
+- **Mac/Linux**: Run `./start_coomerdl.sh`
+
+### Method 2: Pre-built Executable (Windows Only)
+
 1. Download the latest `CoomerDL-Windows.zip` from [Releases](https://github.com/primoscope/CoomerDL/releases)
 2. Extract the ZIP file to a folder
 3. Double-click `CoomerDL.exe` to launch - that's it!
 
 > **Note**: Windows may show a SmartScreen warning for unsigned executables. Click "More info" → "Run anyway" to proceed.
 
-### For Python Users
+### Method 3: Manual Installation
+
+If you prefer to install manually:
+
 1. **Install Python 3.8+** ([Download Python](https://www.python.org/downloads/))
 2. **Install FFmpeg** (Optional, for video merging):
    - Windows: `winget install ffmpeg`
    - macOS: `brew install ffmpeg`
    - Linux: `sudo apt install ffmpeg`
-3. **Clone and run**:
+3. **Clone and install**:
    ```bash
    git clone https://github.com/primoscope/CoomerDL.git
    cd CoomerDL
+   
+   # Create virtual environment (recommended)
+   python -m venv venv
+   
+   # Activate it
+   source venv/bin/activate  # Mac/Linux
+   venv\Scripts\activate      # Windows
+   
+   # Install dependencies
    pip install -r requirements.txt
+   
+   # Run CoomerDL
    python main.py
    ```
 
+4. **Validate installation**:
+   ```bash
+   python validate_install.py
+   ```
+
 > 💡 **Linux users**: You may need to install tkinter: `sudo apt install python3-tk`
+
+### Method 4: Install as Python Package
+
+For developers or users who want CoomerDL as a Python package:
+
+```bash
+git clone https://github.com/primoscope/CoomerDL.git
+cd CoomerDL
+pip install -e .
+
+# Then run from anywhere
+coomerdl "https://example.com/video"
+```
 
 ### Headless / Server Installation (Linux)
 

@@ -62,7 +62,6 @@ coomer.py
 list.txt
 resources/config/download_path/download_folder.json
 CLI/
-setup.py
 test/
 test.py
 test/parse.py
