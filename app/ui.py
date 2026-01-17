@@ -24,7 +24,8 @@ import subprocess
 try:
     from tkinterdnd2 import TkinterDnD, DND_FILES
     dnd_available = True
-except ImportError:
+except (ImportError, OSError):
+    # OSError can happen if tk/tcl libraries are missing on Linux
     dnd_available = False
 
 #from app.patch_notes import PatchNotes
